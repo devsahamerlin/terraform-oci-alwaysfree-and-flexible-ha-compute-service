@@ -1,7 +1,8 @@
-# OCI Always Free High Availability Infrastructure
+# OCI Flexible and Always Free High Availability Infrastructure
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Terraform](https://img.shields.io/badge/Terraform-v1.5+-blueviolet.svg)
+[![OCI](https://img.shields.io/badge/Oracle-Cloud-F80000?logo=oracle)](https://www.oracle.com/cloud/)
 ![OCI Flexible and Always Free](https://img.shields.io/badge/OCI%20Flexible%20And%20Always%20Free-Compliant-brightgreen.svg)
 ![Checkov](https://img.shields.io/badge/Checkov-Policy%20as%20Code-orange.svg)
 ![TFLint](https://img.shields.io/badge/TFLint-latest-blue.svg)
@@ -9,6 +10,7 @@
 ![SARIF](https://img.shields.io/badge/SARIF-Reports-lightgrey.svg)
 ![HA](https://img.shields.io/badge/High%20Availability-Enabled-green.svg)
 ![Bastion](https://img.shields.io/badge/Bastion-Service-blue.svg)
+
 
 ## The Challenge
 Startups, students, and developers often need a reliable, production-grade infrastructure to host applications but face significant barriers:
@@ -51,6 +53,40 @@ with architectural justifications.
 
 All skipped checks are risk-assessed and aligned
 with OCI best practices.
+
+> Deployment with automated security scanning
+
+## Quality
+
+| Check             | Tool                 | Status      |
+|-------------------|----------------------|-------------|
+| Code Format       | `terraform fmt`      | ✅ Automated |
+| Syntax Validation | `terraform validate` | ✅ Automated |
+| Best Practices    | TFLint               | ✅ Automated |
+| Security Scanning | Checkov              | ✅ Automated |
+| Pre-commit Hooks  | pre-commit           | ✅ Enabled   |
+
+All checks run automatically on every push and pull request.
+
+## Quick Start
+
+```bash
+# Install pre-commit hooks
+pre-commit install
+
+# Run all checks locally
+pre-commit run --all-files
+```
+
+## Posture
+
+- ✅ No public IPs on compute instances
+- ✅ Access via OCI Bastion Service only
+- ✅ Private RSA key authentication
+- ✅ Oracle-managed encryption at rest
+- ✅ In-transit encryption enabled
+- ✅ Stateful security lists
+- ✅ Regular automated security scans
 
 
 ## Technical Overview
@@ -549,5 +585,10 @@ To remove all resources and avoid any potential future costs (if limits are exce
 terraform destroy -var-file="env/local.tfvars" -auto-approve
 ```
 
-## License
-MIT License. See the LICENSE file for details.
+## 🔧 Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## 📄 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
