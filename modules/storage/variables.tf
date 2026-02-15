@@ -34,3 +34,9 @@ variable "object_events_enabled" {
   default     = true
   type        = bool
 }
+
+variable "namespace" {
+  description = "Object Storage Namespace"
+  type        = string
+  default     = ""
+}

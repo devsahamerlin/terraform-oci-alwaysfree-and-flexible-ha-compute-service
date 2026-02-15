@@ -146,8 +146,9 @@ module "database" {
   project_name   = var.project_name
   environment    = var.environment
   tags           = local.common_tags
-
-  depends_on = [module.network]
+  nsg_ids        = [] # TO for Next Release module.network.database_nsg_id
+  depends_on     = [module.network]
+  is_free_tier   = var.free_tier_mode && var.enable_database ? true : false
 }
 
 # Storage Module
@@ -162,6 +163,7 @@ module "storage" {
   vm_count              = var.vm_count
   enable_backups        = var.enable_backups
   object_events_enabled = var.object_events_enabled
+  namespace             = var.namespace
 }
 
 # Bastion Module
@@ -226,5 +228,5 @@ resource "time_sleep" "wait_for_instance_configuration" {
 
   depends_on = [module.bastion_sessions]
 
-  create_duration = "3m"
+  create_duration = "2m"
 }

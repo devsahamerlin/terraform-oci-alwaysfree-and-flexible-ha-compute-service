@@ -74,7 +74,6 @@ variable "database_subnet_cidr" {
 variable "vm_count" {
   description = "Number of VM instances"
   type        = number
-  default     = 2
 }
 
 variable "vm_shape" {
@@ -86,19 +85,16 @@ variable "vm_shape" {
 variable "vm_ocpus" {
   description = "Number of OCPUs per VM (max 4 for A1 free tier total)"
   type        = number
-  default     = 2
 }
 
 variable "vm_memory_gb" {
   description = "Memory in GB per VM (max 24GB for A1 free tier total)"
   type        = number
-  default     = 12
 }
 
 variable "vm_boot_volume_size_gb" {
   description = "Boot volume size in GB"
   type        = number
-  default     = 50
 }
 
 variable "ssh_public_key_path" {
@@ -241,13 +237,13 @@ variable "private_security_list_ingress_security_rules" {
 variable "enable_database" {
   description = "Enable or disable the Autonomous Database"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_backend_lb" {
   description = "Enable or disable the Backend Load Balancer"
   type        = bool
-  default     = true
+  default     = false
 }
 # variable "common_name" {
 #   description = "Common name for SSL certificate"
@@ -325,4 +321,10 @@ variable "free_tier_mode" {
   description = "Enable strict Always Free limits validation"
   type        = bool
   default     = true
+}
+
+variable "namespace" {
+  description = "Object Storage Namespace"
+  type        = string
+  default     = ""
 }

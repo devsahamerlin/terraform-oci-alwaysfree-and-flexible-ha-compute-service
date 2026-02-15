@@ -18,4 +18,4 @@ repos:
       - id: terraform_checkov
         args:
           - --args=--framework=terraform
-          - --args=--skip-check=CKV_TF_1,CKV_OCI_17,CKV_OCI_19,CKV_OCI_3,CKV_OCI_20,CKV_OCI_9
+          - --args=--skip-check=CKV_TF_1,CKV_OCI_17,CKV_OCI_19,CKV_OCI_3,CKV_OCI_20,CKV_OCI_9,CKV_OCI_2

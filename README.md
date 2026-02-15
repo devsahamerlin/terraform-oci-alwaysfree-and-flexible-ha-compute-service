@@ -11,23 +11,57 @@
 ![HA](https://img.shields.io/badge/High%20Availability-Enabled-green.svg)
 ![Bastion](https://img.shields.io/badge/Bastion-Service-blue.svg)
 
+**A fully automated, production-ready infrastructure stack on Oracle Cloud Infrastructure (OCI) leveraging the Always Free Tier.**
 
-## The Challenge
+This project delivers a **High Availability (HA)** architecture with **zero estimated monthly cost**, featuring redundancy, strict network isolation, and auto-scaling capabilities.
+
+---
+
+## Table of Contents
+
+- [Overview](#-overview)
+  - [The Challenge](#the-challenge)
+  - [The Solution](#the-solution)
+  - [Key Features](#key-features)
+- [Architecture](#-architecture)
+  - [Diagram](#architecture-diagram)
+  - [Components](#architecture-components)
+- [Security & Compliance](#-security--compliance)
+  - [Posture](#posture)
+  - [Quality](#quality)
+- [Prerequisites](#-prerequisites)
+- [Usage](#-usage)
+  - [Integration as a Terraform Module](#integration-as-a-terraform-module)
+  - [Standalone Deployment](#setup-instructions-standalone)
+- [Configuration](#-configuration)
+- [Operations](#-operations)
+  - [Accessing VMs](#accessing-vms-via-bastion)
+  - [Post-Deployment](#post-deployment-configuration)
+  - [Cost Optimization](#cost-optimization)
+  - [Backup Strategy](#backup-strategy)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing & License](#-contributing--license)
+
+---
+
+## Overview
+
+### The Challenge
 Startups, students, and developers often need a reliable, production-grade infrastructure to host applications but face significant barriers:
 - **High Cloud Costs**: Enterprise-grade features like Load Balancers and HA databases usually come with a steep price tag.
 - **Complexity**: Setting up a secure Virtual Cloud Network (VCN) with public/private subnets, NAT gateways, and Bastion hosts is complex and error-prone.
 - **Security Risks**: Default configurations often expose databases and backend services to the public internet.
 
-## The Solution
-This project provides a **fully automated, production-ready infrastructure stack** on Oracle Cloud Infrastructure (OCI) that leverages the **Always Free Tier**. 
+### The Solution
+This project provides a **fully automated, production-ready infrastructure stack** on Oracle Cloud Infrastructure (OCI).
 
-It delivers a **High Availability (HA)** architecture with **zero estimated monthly cost**, featuring:
+It features:
 - **Redundancy**: Multiple compute instances behind a Load Balancer.
 - **Security**: Strict network isolation with private subnets and Bastion access.
 - **Scalability**: Auto-scaling Autonomous Database.
 - **Automation**: One-click deployment using Terraform.
 
-## Key Features
+### Key Features
 - **💰 100% Free**: Designed to fit entirely within OCI's Always Free limits (4 ARM OCPUs, 24GB RAM, 200GB Storage).
 - **🛡️ Secure by Design**: Backend services and databases are isolated in private subnets. No public IPs on compute instances.
 - **🚀 High Performance**: Uses ARM-based Ampere A1 instances which offer superior performance over traditional x86 micro instances.
@@ -35,50 +69,116 @@ It delivers a **High Availability (HA)** architecture with **zero estimated mont
 
 ---
 
-## Security & Compliance
+## Architecture
 
-This module provisions a production-ready OCI infrastructure
-optimized for Always Free usage by default, but fully flexible
-for paid instance types and horizontal scaling.
+### Architecture Diagram
 
-- Always Free compliant defaults
-- Scalable to paid shapes
-- Security best practices enforced with Checkov static analysis
-- Bastion-based secure access
-- Checkov static analysis & TFLint validation
-- CI security scanning
+```mermaid
+graph TB
+%% External Layer
+    Internet([🌐 Internet])
+Admin([👨‍💻 Administrator])
 
-Documented exceptions are defined in `.checkov.yaml`
-with architectural justifications.
+subgraph OCI["☁️ Oracle Cloud Infrastructure"]
+direction TB
 
-All skipped checks are risk-assessed and aligned
-with OCI best practices.
+subgraph VCN["Virtual Cloud Network - 10.0.0.0/16"]
+direction TB
 
-> Deployment with automated security scanning
+%% Public Layer
+subgraph PublicLayer["📡 Public Subnet - 10.0.1.0/24"]
+IGW[Internet Gateway]
+LB[Load Balancer<br/>HTTPS/HTTP]
+NAT[NAT Gateway]
+end
 
-## Quality
+%% Application Layer
+subgraph AppLayer["🔒 Private Subnet - 10.0.2.0/24"]
+direction LR
+VM1[VM-1<br/>No Public IP]
+VM2[VM-2<br/>No Public IP]
+VMn[VM-N<br/>No Public IP]
+end
 
-| Check             | Tool                 | Status      |
-|-------------------|----------------------|-------------|
-| Code Format       | `terraform fmt`      | ✅ Automated |
-| Syntax Validation | `terraform validate` | ✅ Automated |
-| Best Practices    | TFLint               | ✅ Automated |
-| Security Scanning | Checkov              | ✅ Automated |
-| Pre-commit Hooks  | pre-commit           | ✅ Enabled   |
+%% Data Layer
+subgraph DataLayer["🗄️ Database Subnet - 10.0.3.0/24"]
+DB[(Database<br/>ATP)]
+end
 
-All checks run automatically on every push and pull request.
+%% Services
+SGW[Service Gateway]
+Bastion[🔐 Bastion Service]
+end
 
-## Quick Start
+Storage[(Object Storage)]
+end
 
-```bash
-# Install pre-commit hooks
-pre-commit install
+%% Main Traffic Flow
+Internet -->|1. HTTPS Request| IGW
+IGW --> LB
+LB -->|2. Distribute| VM1 & VM2 & VMn
+VM1 & VM2 & VMn -->|3. Query| DB
 
-# Run all checks locally
-pre-commit run --all-files
+%% Outbound & Storage
+VM1 & VM2 & VMn -->|Updates| NAT -->|Internet| IGW
+VM1 & VM2 & VMn -->|Backups| SGW --> Storage
+
+%% Admin Access
+Admin -->|SSH via<br/>Bastion Only| Bastion
+Bastion -.->|Secure Access| VM1 & VM2 & VMn
+
+%% Styling
+classDef public fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+classDef private fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+classDef data fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+
+class IGW,LB,NAT public
+class VM1,VM2,VMn,Bastion private
+class DB,Storage data
 ```
 
-## Posture
+### Architecture Components
+
+#### Network
+- **VCN**: Virtual Cloud Network with public, backend, and database subnets.
+- **Internet Gateway**: Provides public access for the load balancer.
+- **NAT Gateway**: Allows private subnet resources to access the internet for updates.
+- **Service Gateway**: Enables secure access to OCI services (like Object Storage) without traversing the public internet.
+
+#### Compute
+- **Instances**: 1 to 4 VM instances (ARM-based A1.Flex), configurable via `vm_count`.
+- **High Availability**: Distributed across availability domains (where available) or fault domains to ensure redundancy.
+- **Load Balancer**: Nginx configured as a load balancer with Let's Encrypt SSL for secure traffic distribution.
+- **Automation**: Cloud-init scripts for automated instance provisioning and configuration.
+
+#### Database
+- **Autonomous Transaction Processing (ATP)**: Fully managed, auto-scaling database.
+- **Subnet**: Deployed in a dedicated private subnet for enhanced security.
+- **Always Free Tier**: 1 OCPU and 20GB storage included.
+- **Features**: Automatic backups, patching, and self-repairing capabilities.
+
+#### Storage
+- **Object Storage**: Bucket for storing static assets and backups (20GB free).
+- **Block Volumes**: Persistent storage for compute instances (200GB total free).
+
+#### Security
+- **Bastion Service**: Secure, ephemeral SSH access to private instances without public IPs.
+- **Security Lists & NSGs**: Granular network access control.
+- **Private Subnets**: Backend and database resources are isolated from the public internet.
+
+---
+
+## 🛡️ Security & Compliance
+
+This module provisions a production-ready OCI infrastructure optimized for Always Free usage by default, but fully flexible for paid instance types and horizontal scaling.
+
+- **Always Free compliant defaults**
+- **Scalable to paid shapes**
+- **Security best practices enforced** with Checkov static analysis
+- **Bastion-based secure access**
+- **CI security scanning**
+
+### Posture
 
 - ✅ No public IPs on compute instances
 - ✅ Access via OCI Bastion Service only
@@ -88,214 +188,52 @@ pre-commit run --all-files
 - ✅ Stateful security lists
 - ✅ Regular automated security scans
 
+### Quality
 
-## Technical Overview
-This project automates the deployment of a secure, scalable, and cost-effective infrastructure stack using Terraform. It sets up a complete VCN with public, backend, and database subnets, deploys Nginx load balancers, and provisions an Autonomous Database.
+| Check             | Tool                 | Status      |
+|-------------------|----------------------|-------------|
+| Code Format       | `terraform fmt`      | ✅ Automated |
+| Syntax Validation | `terraform validate` | ✅ Automated |
+| Best Practices    | TFLint               | ✅ Automated |
+| Security Scanning | Checkov              | ✅ Automated |
+| Pre-commit Hooks  | pre-commit           | ✅ Enabled   |
 
-## Architecture Diagram
+---
 
-```mermaid
-graph TD
-    User[User/Internet] -->|HTTPS| IGW[Internet Gateway]
-    
-    subgraph OCI_Region [OCI Region]
-        subgraph VCN [Virtual Cloud Network]
-            
-            subgraph Public_Subnet [Public Subnet]
-                FLB[Frontend Load Balancer]
-                Bastion[Bastion Service]
-            end
-            
-            subgraph Private_Subnet [Backend Subnet]
-                VM1[Compute VM 1]
-                VM2[Compute VM 2]
-                VMn[... VM n]
-                BLB[Backend Load Balancer]
-            end
-
-            subgraph Database_Subnet [Database Subnet]
-                ATP[(Autonomous Database)]
-            end
-            
-            NGW[NAT Gateway]
-            SGW[Service Gateway]
-        end
-        
-        OS[Object Storage]
-    end
-    
-    IGW --> FLB
-    FLB -->|Traffic| VM1
-    FLB -->|Traffic| VM2
-    FLB -.->|Traffic| VMn
-    
-    VM1 -->|Internal API| BLB
-    VM2 -->|Internal API| BLB
-    VMn -.->|Internal API| BLB
-    
-    BLB --> ATP
-    
-    VM1 -->|Updates| NGW
-    VM2 -->|Updates| NGW
-    VMn -.->|Updates| NGW
-    
-    VM1 -->|Backups/Assets| SGW
-    VM2 -->|Backups/Assets| SGW
-    VMn -.->|Backups/Assets| SGW
-    SGW --> OS
-    
-    Bastion -.->|SSH| VM1
-    Bastion -.->|SSH| VM2
-    Bastion -.->|SSH| VMn
-```
-
-## Architecture Components
-
-### Network
-- **VCN**: Virtual Cloud Network with public, backend, and database subnets.
-- **Internet Gateway**: Provides public access for the load balancer.
-- **NAT Gateway**: Allows private subnet resources to access the internet for updates.
-- **Service Gateway**: Enables secure access to OCI services (like Object Storage) without traversing the public internet.
-
-### Compute
-- **Instances**: 1 to 4 VM instances (ARM-based A1.Flex), configurable via `vm_count`.
-- **High Availability**: Distributed across availability domains (where available) or fault domains to ensure redundancy.
-- **Load Balancer**: Nginx configured as a load balancer with Let's Encrypt SSL for secure traffic distribution.
-- **Automation**: Cloud-init scripts for automated instance provisioning and configuration.
-
-### Database
-- **Autonomous Transaction Processing (ATP)**: Fully managed, auto-scaling database.
-- **Subnet**: Deployed in a dedicated private subnet for enhanced security.
-- **Always Free Tier**: 1 OCPU and 20GB storage included.
-- **Features**: Automatic backups, patching, and self-repairing capabilities.
-
-### Storage
-- **Object Storage**: Bucket for storing static assets and backups (20GB free).
-- **Block Volumes**: Persistent storage for compute instances (200GB total free).
-
-### Security
-- **Bastion Service**: Secure, ephemeral SSH access to private instances without public IPs.
-- **Security Lists & NSGs**: Granular network access control.
-- **Private Subnets**: Backend and database resources are isolated from the public internet.
-
-```mermaid
-graph TB
-    %% External Access
-    User([👤 User/Internet])
-    Admin([👨‍💻 Administrator])
-    
-    %% OCI Region Container
-    subgraph OCI["☁️ OCI Region"]
-        direction TB
-        
-        %% VCN Container
-        subgraph VCN["🌐 Virtual Cloud Network (10.0.0.0/16)"]
-            direction TB
-            
-            %% Internet Gateway
-            IGW[🌍 Internet Gateway<br/>Ingress/Egress]
-            
-            %% Public Subnet
-            subgraph Public["📡 Public Subnet (10.0.1.0/24)"]
-                direction TB
-                FLB[⚖️ Frontend Load Balancer<br/>HTTPS:443 / HTTP:80]
-                Bastion[🔐 Bastion Service<br/>Private RSA Key Auth]
-                NGW[🚪 NAT Gateway<br/>Outbound Only]
-            end
-            
-            %% Private Subnet
-            subgraph Private["🔒 Private Subnet (10.0.2.0/24)"]
-                direction LR
-                VM1[💻 Compute VM 1<br/>assign_public_ip: false]
-                VM2[💻 Compute VM 2<br/>assign_public_ip: false]
-                VMn[💻 Compute VM N<br/>assign_public_ip: false]
-                BLB[⚖️ Backend Load Balancer<br/>Internal API Only]
-            end
-            
-            %% Database Subnet
-            subgraph Database["🗄️ Database Subnet (10.0.3.0/24)"]
-                ATP[(💾 Autonomous Database<br/>ATP/ADW)]
-            end
-            
-            %% Service Gateway
-            SGW[🔌 Service Gateway<br/>OCI Services]
-        end
-        
-        %% Object Storage
-        OS[(☁️ Object Storage<br/>Backups & Assets)]
-    end
-    
-    %% === TRAFFIC FLOWS ===
-    
-    %% User to Frontend
-    User -->|HTTPS/HTTP<br/>Port 443/80| IGW
-    IGW -->|Route to Public| FLB
-    
-    %% Frontend to VMs
-    FLB -->|Distribute Traffic<br/>Health Checked| VM1
-    FLB -->|Distribute Traffic<br/>Health Checked| VM2
-    FLB -.->|Distribute Traffic<br/>Health Checked| VMn
-    
-    %% VMs to Backend API
-    VM1 -->|Internal API<br/>REST/gRPC| BLB
-    VM2 -->|Internal API<br/>REST/gRPC| BLB
-    VMn -.->|Internal API<br/>REST/gRPC| BLB
-    
-    %% Backend to Database
-    BLB -->|SQL/JDBC<br/>Port 1521-1522| ATP
-    
-    %% VMs to Internet (Updates)
-    VM1 -->|OS Updates<br/>apt/yum| NGW
-    VM2 -->|OS Updates<br/>apt/yum| NGW
-    VMn -.->|OS Updates<br/>apt/yum| NGW
-    NGW -->|Outbound to Internet| IGW
-    
-    %% VMs to Object Storage
-    VM1 -->|Backups/Logs<br/>OCI API| SGW
-    VM2 -->|Backups/Logs<br/>OCI API| SGW
-    VMn -.->|Backups/Logs<br/>OCI API| SGW
-    SGW -->|Private Network| OS
-    
-    %% Admin Bastion Access
-    Admin -->|OCI Console<br/>Bastion Session| Bastion
-    Bastion -.->|SSH Session<br/>Port 22| VM1
-    Bastion -.->|SSH Session<br/>Port 22| VM2
-    Bastion -.->|SSH Session<br/>Port 22| VMn
-    
-    %% === STYLING ===
-    classDef publicStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
-    classDef privateStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#000
-    classDef databaseStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
-    classDef gatewayStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
-    classDef storageStyle fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000
-    classDef bastionStyle fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000
-    
-    class FLB,NGW publicStyle
-    class VM1,VM2,VMn,BLB privateStyle
-    class ATP databaseStyle
-    class IGW,SGW gatewayStyle
-    class OS storageStyle
-    class Bastion bastionStyle
-```
-
-## Prerequisites
+## 📋 Prerequisites
 
 1. **OCI Account**: Sign up at [https://cloud.oracle.com/](https://cloud.oracle.com/).
 2. **API Keys**: Generate API signing keys in the OCI Console.
 3. **Terraform**: Install Terraform version >= 1.5.0.
 4. **OCI CLI** (Optional): Useful for managing Bastion sessions and advanced operations.
 
-## Integration as a Terraform Module
+---
+
+## ⚡ Quick Start
+
+To run all checks locally:
+
+```bash
+# Install pre-commit hooks
+pre-commit install
+
+# Run all checks locally
+pre-commit run --all-files
+```
+
+---
+
+## 💻 Usage
+
+### Integration as a Terraform Module
 
 You can integrate this stack as a module into your existing Terraform infrastructure.
-
-### Example Usage
 
 ```hcl
 module "oci_ha_stack" {
   source = "git::https://github.com/your-username/terraform-oci-alwaysfree-production-ha-stack.git?ref=main"
 
-  # OCI Authentication (Passed from parent module or environment variables)
+  # OCI Authentication
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
@@ -306,44 +244,50 @@ module "oci_ha_stack" {
   project_name = "my-app"
   environment  = "prod"
 
-  # Network Configuration
-  vcn_cidr             = "10.0.0.0/16"
-  public_subnet_cidr   = "10.0.1.0/24"
-  private_subnet_cidr  = "10.0.2.0/24"
-  database_subnet_cidr = "10.0.3.0/24"
-  public_security_list_ingress_security_rules  = var.public_security_list_ingress_security_rules
-  private_security_list_ingress_security_rules = var.private_security_list_ingress_security_rules
-
-  # Feature Flags
-  enable_database    = true
-  enable_frontend_lb = true
-  enable_backend_lb  = true
-  enable_bastion     = true
-  enable_dns         = true
-  enable_storage     = true
-  enable_ocir        = true
-
-  # Compute Settings
-  vm_count     = 2 # from 1 to 4 for Always Free Resources
+  # Configuration
+  vm_count     = 2
   vm_shape     = "VM.Standard.A1.Flex"
   ssh_public_key_path = "~/.ssh/id_rsa.pub"
-
-  # Database Settings
-  atp_db_name        = "myappdb"
-  atp_admin_password = var.db_password # Pass sensitive variables securely
-
-  # Domain Settings
-  frontend_domain_name = "app.example.com"
-  backend_domain_name  = "api.example.com"
   
-  # Other
-  github_actions_email      = "ci@example.com"
-  github_actions_public_key = "ssh-rsa AAAA..."
-  cloud_init_config = file("${path.module}/cloud-init.yaml")
+  # ... other variables
 }
 ```
 
-**Note**: When using as a module, ensure that the OCI provider is configured in your root module. The module itself does not instantiate the provider to avoid conflicts.
+### Setup Instructions (Standalone)
+
+#### 1. Get My Public IP Address
+```bash
+curl ifconfig.me
+```
+Use this IP to restrict access in your security rules.
+
+#### 2. Generate OCI API Keys
+```bash
+mkdir -p ~/.oci
+openssl genrsa -out oci_api_key.pem 2048
+chmod 600 oci_api_key.pem
+openssl rsa -pubout -in oci_api_key.pem -out oci_api_key_public.pem
+```
+Upload `oci_api_key_public.pem` to OCI Console.
+
+#### 3. Configure Terraform Variables
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars
+```
+
+#### 4. Deploy
+```bash
+terraform init
+terraform plan -var-file="env/local.tfvars"
+terraform apply -var-file="env/local.tfvars" -auto-approve
+
+terraform refresh -var-file="env/local.tfvars"
+```
+
+---
+
+## ⚙️ Configuration
 
 ## Requirements
 
@@ -465,230 +409,55 @@ module "oci_ha_stack" {
 | <a name="output_vcn_cidr"></a> [vcn\_cidr](#output\_vcn\_cidr) | CIDR block of the VCN |
 | <a name="output_vcn_id"></a> [vcn\_id](#output\_vcn\_id) | OCID of the Virtual Cloud Network (VCN) |
 
+---
 
-## Setup Instructions (Standalone)
+## Operations
 
-### 1. Get My Public IP Address
-You can get your public IP address using the following command:
-
-```bash
-curl ifconfig.me
-```
-Use this IP to restrict access in your security rules (e.g., `5.78.28.166/32`).
-- `/32` - Single IP (most restrictive, recommended for bastion services)
-- `/24` - 256 IP addresses
-- `/16` - 65,536 IP addresses
-
-### 2. Generate OCI API Keys
-Create a dedicated directory for your OCI keys and generate them:
-
-```bash
-mkdir -p ~/.oci
-cd ~/.oci
-openssl genrsa -out oci_api_key.pem 2048
-chmod 600 oci_api_key.pem
-openssl rsa -pubout -in oci_api_key.pem -out oci_api_key_public.pem
-cat oci_api_key_public.pem
-```
-Upload the public key content to your OCI Console under **User Settings → API Keys → Add API Key**.
-
-### 3. Configure Terraform Variables
-Copy the example variable file and update it with your specific details:
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your OCI tenancy, user, and region details
-```
-
-### 4. Initialize Terraform
-Initialize the project to download the necessary providers and modules:
-
-```bash
-terraform init
-```
-
-### 5. Plan Deployment
-Preview the changes that Terraform will make to your infrastructure:
-
-```bash
-# For local environment
-terraform plan -var-file="env/local.tfvars"
-```
-
-### 6. Apply Infrastructure
-Provision the resources in OCI:
-
-```bash
-terraform apply -var-file="env/local.tfvars" -auto-approve
-```
-
-### 7. Access Resources
-After a successful apply, retrieve the output information:
-
-```bash
-terraform output
-```
-
-## Accessing VMs via Bastion
+### Accessing VMs via Bastion
 
 Since the compute instances are in a private subnet, you must use the OCI Bastion service to connect.
 
-### 1. Create a Port Forwarding Session
-Use the OCI CLI to create a session:
-
+**1. Get Bastion Session Connection**
 ```bash
-oci bastion session create-port-forwarding \
-  --bastion-id <bastion_id_from_output> \
-  --display-name "ssh-session" \
-  --key-type PUB \
-  --ssh-public-key-file ~/.ssh/id_rsa.pub \
-  --target-private-ip <VM_PRIVATE_IP> \
-  --target-port 22
+terraform output bastion_connection_metadata
 ```
 
-### 2. Connect via SSH
-Construct the SSH command using the session ID:
+**2. Connect via SSH**
 
-```bash
-ssh -i ~/.ssh/id_rsa -o ProxyCommand="ssh -i ~/.ssh/id_rsa -W %h:%p <bastion_session_id>@host.bastion.<region>.oci.oraclecloud.com" opc@<VM_PRIVATE_IP>
+```shell
+ssh -i <your-private-key-path> -o ProxyCommand="ssh -i <your-private-key-path> -W <instance_private_ip>:22 <session_id>@host.bastion.<region>.oci.oraclecloud.com" -p 22 ubuntu@<instance_private_ip>
 ```
 
-## Post-Deployment Configuration
+### Post-Deployment Configuration
 
-### Nginx Configuration
-The Nginx load balancer is configured to route traffic to your application.
-- **Frontend**: Serves static content or proxies to the frontend application.
-- **Backend**: Proxies API requests to the backend service.
-- **SSL**: Secured using Let's Encrypt via Certbot.
+- **Nginx**: Configured to route traffic. Update upstream servers in `/etc/nginx/conf.d/backend.conf`.
+- **Database**: Download the wallet using `terraform output -raw atp_wallet_content | base64 -d > wallet.zip`.
 
-To manually update upstream servers:
-```bash
-sudo vi /etc/nginx/conf.d/backend.conf
-# Update upstream IPs with actual private IPs
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### Database Connection
-To connect to the ATP database:
-1. Download the wallet:
-   ```bash
-   terraform output -raw atp_wallet_content | base64 -d > wallet.zip
-   unzip wallet.zip -d ~/wallet
-   ```
-2. Configure your application or SQL client to use the wallet files.
-
-### OCIR Workflow (Optional)
-If you are using OCI Container Registry (OCIR):
-
-```bash
-# Get OCIR details
-terraform output ocir_configuration
-
-# Push images to OCIR
-docker login <region>.ocir.io
-docker push <region>.ocir.io/<namespace>/fastapi-backend:latest
-docker push <region>.ocir.io/<namespace>/angular-frontend:latest
-```
-
-## Environment Management
-
-You can manage multiple environments (dev, staging, prod) using Terraform workspaces and separate variable files.
-
-```bash
-# Switch to dev
-terraform workspace new dev
-terraform apply -var-file="env/dev.tfvars"
-
-# Switch to prod
-terraform workspace new prod
-terraform apply -var-file="env/prod.tfvars"
-```
-
-## Cost Optimization
-This entire stack is designed to fit within the **OCI Always Free Tier**:
-- **Compute**: 4 OCPUs and 24GB RAM (ARM) are free.
-- **Database**: 20GB Autonomous Database is free.
-- **Storage**: 200GB Block Volume and 20GB Object Storage are free.
-- **Networking**: 10TB outbound data transfer per month is free.
+### Cost Optimization
+This stack is designed to fit within the **OCI Always Free Tier**:
+- **Compute**: 4 OCPUs, 24GB RAM (ARM).
+- **Database**: 20GB Autonomous Database.
+- **Storage**: 200GB Block Volume, 20GB Object Storage.
+- **Networking**: 10TB outbound data transfer.
 
 **Estimated Monthly Cost: $0.00**
 
-## Security Best Practices
-
-1. **Restrict SSH Access**: Use specific CIDR blocks (e.g., `YOUR_IP/32`) instead of `0.0.0.0/0`.
-2. **Enable MFA**: Enable Multi-Factor Authentication on your OCI account.
-3. **Rotate Credentials**: Regularly rotate database passwords, API keys, and SSH keys.
-4. **Use Vault**: Store sensitive data in OCI Vault.
-   ```bash
-   oci vault secret create-base64 \
-     --compartment-id <compartment_id> \
-     --vault-id <vault_id> \
-     --key-id <key_id> \
-     --secret-name "db-password" \
-     --secret-content-content "$(echo -n 'password' | base64)"
-   ```
-
-## Backup Strategy
-
+### Backup Strategy
 - **Automated**: ATP Daily automatic backups, Object Storage Versioning.
-- **Manual**:
-  ```bash
-  oci compute boot-volume-backup create \
-    --boot-volume-id <boot_volume_id> \
-    --display-name "vm-backup-$(date +%Y%m%d)"
-  ```
+- **Manual**: Use OCI CLI or Console to create boot volume backups.
+
+---
 
 ## Troubleshooting
 
-### Common Issues
-- **Instance Capacity**: If A1.Flex instances are unavailable in your region, try a different region or retry later.
-- **Terraform Locks**: If the state is locked, use `terraform force-unlock <lock_id>`.
-- **Connectivity**: Ensure your IP is added to the allowed CIDR list for SSH access if restricted.
+- **Instance Capacity**: If A1.Flex instances are unavailable, try a different region.
+- **Terraform Locks**: Use `terraform force-unlock <lock_id>` if needed.
+- **Cloud-Init**: Check logs at `/var/log/cloud-init-output.log`.
 
-### Debugging Cloud-Init
-If the instance is not configuring correctly, check the cloud-init logs:
+---
 
-```bash
-# Check status
-sudo cloud-init status --long
-
-# View output logs
-sudo cat /var/log/cloud-init-output.log
-
-# View full logs
-sudo cat /var/log/cloud-init.log | grep -A 20 "package-update-upgrade-install"
-```
-
-### Manual Nginx/Certbot Install (Fallback)
-If cloud-init fails to install packages:
-
-```bash
-# Enable EPEL
-sudo dnf install -y oracle-epel-release-el8
-sudo dnf config-manager --enable ol8_developer_EPEL
-
-# Install Nginx
-sudo dnf install -y nginx
-
-# Install Certbot
-sudo dnf install -y snapd
-sudo systemctl enable --now snapd.socket
-sudo ln -s /var/lib/snapd/snap /snap
-sudo snap install --classic certbot
-```
-
-## Cleanup
-To remove all resources and avoid any potential future costs (if limits are exceeded):
-
-```bash
-terraform destroy -var-file="env/local.tfvars" -auto-approve
-```
-
-## 🔧 Development
+## Contributing & License
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
-
-## 📄 License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) file.

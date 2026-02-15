@@ -5,6 +5,9 @@ fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
 private_key_path = "~/.oci/oci_api_key.pem"
 region           = "us-phoenix-1"
 
+namespace        = "oci namespace id"
+ssh_public_key_path = "eg: ~/.ssh/id_rsa.pub"
+
 backend_domain_name = "backend.example.com"
 frontend_domain_name = "frontend.example.com"
 
@@ -35,13 +38,14 @@ github_actions_email      = ""
 github_actions_public_key = ""
 
 # Feature Flags
-enable_database    = true
+enable_database    = false
 enable_frontend_lb = true
-enable_backend_lb  = true
+enable_backend_lb  = false
 enable_bastion     = true
 enable_dns         = true
 enable_storage     = true
 enable_ocir        = true
+object_events_enabled = true
 
 # Security
 allowed_ssh_cidrs = ["0.0.0.0/0"]

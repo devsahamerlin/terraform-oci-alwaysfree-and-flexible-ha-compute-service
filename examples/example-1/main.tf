@@ -42,7 +42,7 @@ module "oci_ha_stack" {
   # Compute Settings
   vm_count            = var.vm_count
   vm_shape            = var.vm_shape
-  ssh_public_key_path = file("${path.module}/id_rsa.pub")
+  ssh_public_key_path = var.ssh_public_key_path == "" ? file("${path.module}/id_rsa.pub") : file(var.ssh_public_key_path)
   instance_image_ocid = var.instance_image_ocid
 
   # Database Settings
@@ -69,5 +69,6 @@ module "oci_ha_stack" {
   # Storage
   enable_backups        = var.enable_backups
   object_events_enabled = var.object_events_enabled
+  namespace             = var.namespace
 
 }
