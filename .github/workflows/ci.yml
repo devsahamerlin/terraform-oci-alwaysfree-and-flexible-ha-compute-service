@@ -14,6 +14,7 @@ jobs:
     name: Terraform Validate & Security Scan
     runs-on: ubuntu-latest
 
+    # Complete permissions for SARIF upload and security scanning
     permissions:
       contents: read           # Read repository contents
       pull-requests: write     # Write PR comments
@@ -30,6 +31,7 @@ jobs:
         with:
           terraform_version: 1.6.6
 
+      # Validate root module
       - name: Terraform Format Check (root)
         run: terraform fmt -recursive
 
@@ -39,6 +41,7 @@ jobs:
       - name: Terraform Validate (root)
         run: terraform validate
 
+      # Validate example
       - name: Terraform Init (example)
         working-directory: ${{ env.EXAMPLE_DIR }}
         run: terraform init -backend=false
@@ -47,6 +50,19 @@ jobs:
         working-directory: ${{ env.EXAMPLE_DIR }}
         run: terraform validate
 
+      # Checkov Security Scan
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+          soft_fail: true  # Always generate SARIF, even if checks fail
+          config_file: .checkov.yaml
+
+      # TFLint
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
 
@@ -58,84 +74,10 @@ jobs:
 
       # Upload security scan results to GitHub Code Scanning
       - name: Upload SARIF file
-        if: always()
+        # Only upload if Checkov ran (success or failure)
+        if: success() || failure()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
           category: checkov-terraform
-        continue-on-error: true  # Don't fail workflow if upload fails (e.g., on forks)
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: .
-          framework: terraform
-          output_format: cli,sarif
-          output_file_path: console,results.sarif
-          soft_fail: false
-          config_file: .checkov.yaml
-
-#jobs:
-#  terraform:
-#    name: Terraform Validate & Security Scan
-#    runs-on: ubuntu-latest
-#
-#    permissions:
-#      contents: read
-#      pull-requests: write
-#      security-events: write
-#
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Setup Terraform
-#        uses: hashicorp/setup-terraform@v3
-#        with:
-#          terraform_version: 1.6.6
-#
-#      # Validate root module
-#      - name: Terraform Format Check (root)
-#        run: terraform fmt -recursive # -check
-#
-#      - name: Terraform Init (root)
-#        run: terraform init -backend=false
-#
-#      - name: Terraform Validate (root)
-#        run: terraform validate
-#
-#      # Validate example
-#      - name: Terraform Init (example)
-#        working-directory: ${{ env.EXAMPLE_DIR }}
-#        run: terraform init -backend=false
-#
-#      - name: Terraform Validate (example)
-#        working-directory: ${{ env.EXAMPLE_DIR }}
-#        run: terraform validate
-#
-#      # Checkov Security Scan
-#      - name: Run Checkov
-#        uses: bridgecrewio/checkov-action@v12
-#        with:
-#          directory: .
-#          framework: terraform
-#          output_format: cli,sarif
-#          output_file_path: console,results.sarif
-#          soft_fail: false
-#
-#
-#      # TFLint
-#      - name: Setup TFLint
-#        uses: terraform-linters/setup-tflint@v4
-#
-#      - name: Init TFLint
-#        run: tflint --init
-#
-#      - name: Run TFLint
-#        run: tflint --recursive
-#
-#      - name: Upload SARIF file
-#        if: always()
-#        uses: github/codeql-action/upload-sarif@v4
-#        with:
-#          sarif_file: results.sarif
+        continue-on-error: true  # Don't fail workflow if upload fails

@@ -1,4 +1,5 @@
 module "oci_ha_stack" {
+  #source = "https://github.com/devsahamerlin/terraform-oci-alwaysfree-production-ha-stack"
   source = "../../"
 
   # Resources Type: Always Free Compute Or Paid ?

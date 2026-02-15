@@ -2,8 +2,13 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Terraform](https://img.shields.io/badge/Terraform-v1.5+-blueviolet.svg)
-![OCI Always Free](https://img.shields.io/badge/OCI%20Always%20Free-Compliant-brightgreen.svg)
-
+![OCI Flexible and Always Free](https://img.shields.io/badge/OCI%20Flexible%20And%20Always%20Free-Compliant-brightgreen.svg)
+![Checkov](https://img.shields.io/badge/Checkov-Policy%20as%20Code-orange.svg)
+![TFLint](https://img.shields.io/badge/TFLint-latest-blue.svg)
+![Ubuntu](https://img.shields.io/badge/OS-Ubuntu-orange.svg)
+![SARIF](https://img.shields.io/badge/SARIF-Reports-lightgrey.svg)
+![HA](https://img.shields.io/badge/High%20Availability-Enabled-green.svg)
+![Bastion](https://img.shields.io/badge/Bastion-Service-blue.svg)
 
 ## The Challenge
 Startups, students, and developers often need a reliable, production-grade infrastructure to host applications but face significant barriers:
