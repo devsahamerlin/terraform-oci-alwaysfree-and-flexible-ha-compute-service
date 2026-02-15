@@ -178,6 +178,106 @@ graph TD
 - **Security Lists & NSGs**: Granular network access control.
 - **Private Subnets**: Backend and database resources are isolated from the public internet.
 
+```mermaid
+graph TB
+    %% External Access
+    User([👤 User/Internet])
+    Admin([👨‍💻 Administrator])
+    
+    %% OCI Region Container
+    subgraph OCI["☁️ OCI Region"]
+        direction TB
+        
+        %% VCN Container
+        subgraph VCN["🌐 Virtual Cloud Network (10.0.0.0/16)"]
+            direction TB
+            
+            %% Internet Gateway
+            IGW[🌍 Internet Gateway<br/>Ingress/Egress]
+            
+            %% Public Subnet
+            subgraph Public["📡 Public Subnet (10.0.1.0/24)"]
+                direction TB
+                FLB[⚖️ Frontend Load Balancer<br/>HTTPS:443 / HTTP:80]
+                Bastion[🔐 Bastion Service<br/>Private RSA Key Auth]
+                NGW[🚪 NAT Gateway<br/>Outbound Only]
+            end
+            
+            %% Private Subnet
+            subgraph Private["🔒 Private Subnet (10.0.2.0/24)"]
+                direction LR
+                VM1[💻 Compute VM 1<br/>assign_public_ip: false]
+                VM2[💻 Compute VM 2<br/>assign_public_ip: false]
+                VMn[💻 Compute VM N<br/>assign_public_ip: false]
+                BLB[⚖️ Backend Load Balancer<br/>Internal API Only]
+            end
+            
+            %% Database Subnet
+            subgraph Database["🗄️ Database Subnet (10.0.3.0/24)"]
+                ATP[(💾 Autonomous Database<br/>ATP/ADW)]
+            end
+            
+            %% Service Gateway
+            SGW[🔌 Service Gateway<br/>OCI Services]
+        end
+        
+        %% Object Storage
+        OS[(☁️ Object Storage<br/>Backups & Assets)]
+    end
+    
+    %% === TRAFFIC FLOWS ===
+    
+    %% User to Frontend
+    User -->|HTTPS/HTTP<br/>Port 443/80| IGW
+    IGW -->|Route to Public| FLB
+    
+    %% Frontend to VMs
+    FLB -->|Distribute Traffic<br/>Health Checked| VM1
+    FLB -->|Distribute Traffic<br/>Health Checked| VM2
+    FLB -.->|Distribute Traffic<br/>Health Checked| VMn
+    
+    %% VMs to Backend API
+    VM1 -->|Internal API<br/>REST/gRPC| BLB
+    VM2 -->|Internal API<br/>REST/gRPC| BLB
+    VMn -.->|Internal API<br/>REST/gRPC| BLB
+    
+    %% Backend to Database
+    BLB -->|SQL/JDBC<br/>Port 1521-1522| ATP
+    
+    %% VMs to Internet (Updates)
+    VM1 -->|OS Updates<br/>apt/yum| NGW
+    VM2 -->|OS Updates<br/>apt/yum| NGW
+    VMn -.->|OS Updates<br/>apt/yum| NGW
+    NGW -->|Outbound to Internet| IGW
+    
+    %% VMs to Object Storage
+    VM1 -->|Backups/Logs<br/>OCI API| SGW
+    VM2 -->|Backups/Logs<br/>OCI API| SGW
+    VMn -.->|Backups/Logs<br/>OCI API| SGW
+    SGW -->|Private Network| OS
+    
+    %% Admin Bastion Access
+    Admin -->|OCI Console<br/>Bastion Session| Bastion
+    Bastion -.->|SSH Session<br/>Port 22| VM1
+    Bastion -.->|SSH Session<br/>Port 22| VM2
+    Bastion -.->|SSH Session<br/>Port 22| VMn
+    
+    %% === STYLING ===
+    classDef publicStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+    classDef privateStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#000
+    classDef databaseStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
+    classDef gatewayStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef storageStyle fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000
+    classDef bastionStyle fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000
+    
+    class FLB,NGW publicStyle
+    class VM1,VM2,VMn,BLB privateStyle
+    class ATP databaseStyle
+    class IGW,SGW gatewayStyle
+    class OS storageStyle
+    class Bastion bastionStyle
+```
+
 ## Prerequisites
 
 1. **OCI Account**: Sign up at [https://cloud.oracle.com/](https://cloud.oracle.com/).
