@@ -33,3 +33,14 @@ variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
 }
+
+variable "is_free_tier" {
+  description = "Boolean flag to determine if the Autonomous Database should use the Always Free tier"
+  type        = bool
+}
+
+variable "nsg_ids" {
+  description = "List of Network Security Group OCIDs to associate with the Autonomous Database"
+  type        = list(string)
+  default     = []
+}

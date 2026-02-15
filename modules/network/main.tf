@@ -3,7 +3,7 @@ resource "oci_core_vcn" "main" {
   compartment_id = var.compartment_id
   cidr_blocks    = [var.vcn_cidr]
   display_name   = "${var.project_name}-${var.environment}-vcn"
-  dns_label      = replace("${var.project_name}${var.environment}", "-", "")
+  dns_label      = substr(replace("${var.project_name}${var.environment}", "-", ""), 0, 15)
 
   freeform_tags = var.tags
 }

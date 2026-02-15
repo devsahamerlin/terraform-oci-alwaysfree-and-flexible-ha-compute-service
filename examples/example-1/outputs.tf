@@ -95,6 +95,12 @@ output "block_volume_ids" {
   value       = module.oci_ha_stack.block_volume_ids
 }
 
+output "backup_policy_id" {
+  description = "OCID of the assigned backup policy"
+  value       = module.oci_ha_stack.backup_policy_id
+}
+#
+
 # ==============================================================================
 # Bastion Outputs
 # ==============================================================================
@@ -104,10 +110,12 @@ output "bastion_id" {
   value       = module.oci_ha_stack.bastion_id
 }
 
-output "bastion_ssh_metadata" {
-  description = "Metadata for Bastion sessions (if any)"
-  value       = module.oci_ha_stack.bastion_ssh_metadata
+output "bastion_connection_metadata" {
+  description = "Connection metadata for Bastion sessions (if any)"
+  value       = module.oci_ha_stack.bastion_connection_metadata
 }
+
+
 
 # ==============================================================================
 # OCIR (Container Registry) Outputs

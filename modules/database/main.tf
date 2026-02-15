@@ -13,12 +13,12 @@ resource "oci_database_autonomous_database" "atp" {
   cpu_core_count           = 1
   data_storage_size_in_tbs = 1
 
-  # Network access
-  subnet_id = var.subnet_id
-  nsg_ids   = []
+  subnet_id = var.is_free_tier ? null : var.subnet_id
+  nsg_ids   = var.is_free_tier ? [] : var.nsg_ids
 
   freeform_tags = var.tags
 }
+
 
 # Create database wallet
 resource "oci_database_autonomous_database_wallet" "atp_wallet" {

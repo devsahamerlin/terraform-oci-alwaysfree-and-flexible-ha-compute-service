@@ -33,7 +33,7 @@ output "backend_load_balancer_public_ip" {
 
 output "frontend_load_balancer_public_ip" {
   description = "Public IP of the Frontent Load Balancer"
-  value       = var.enable_backend_lb ? module.frontend_load_balancer[0].lb_public_ip : null
+  value       = var.enable_frontend_lb ? module.frontend_load_balancer[0].lb_public_ip : null
 }
 
 # ==============================================================================
@@ -94,6 +94,12 @@ output "block_volume_ids" {
   value       = var.enable_storage ? try(module.storage[0].block_volume_ids, null) : null
 }
 
+
+output "backup_policy_id" {
+  description = "OCID of the assigned backup policy"
+  value       = var.enable_storage ? try(module.storage[0].backup_policy_id, null) : null
+}
+
 # ==============================================================================
 # Bastion Outputs
 # ==============================================================================
@@ -103,9 +109,17 @@ output "bastion_id" {
   value       = var.enable_bastion ? try(module.bastion[0].bastion_id, null) : null
 }
 
-output "bastion_ssh_metadata" {
-  description = "Metadata for Bastion sessions (if any)"
-  value       = var.enable_bastion ? module.bastion_sessions : null
+output "bastion_connection_metadata" {
+  description = "SSH metadata for connecting via Bastion for all VMs"
+  value = var.enable_bastion ? {
+    for i in range(var.vm_count) :
+    module.compute.instance_names[i] => {
+      session_id         = module.bastion_sessions[i].bastion_session_id
+      instance_id        = module.compute.instance_ids[i]
+      private_ip         = module.compute.instance_private_ips[i]
+      connection_command = "ssh -i <your-private-key-path> -o ProxyCommand=\"ssh -i <your-private-key-path> -W ${module.compute.instance_private_ips[i]}:22 ${module.bastion_sessions[i].bastion_session_id}@host.bastion.${var.region}.oci.oraclecloud.com\" -p 22 ubuntu@${module.compute.instance_private_ips[i]}"
+    }
+  } : null
 }
 
 # ==============================================================================

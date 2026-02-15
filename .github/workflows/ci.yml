@@ -61,7 +61,7 @@ jobs:
           framework: terraform
           output_format: cli,sarif
           output_file_path: console,results.sarif
-          soft_fail: true  # Always generate SARIF, even if checks fail
+          soft_fail: false
           config_file: .checkov.yaml
 
       # TFLint
@@ -77,7 +77,7 @@ jobs:
 #      # Upload security scan results to GitHub Code Scanning (to uncomment when repository will be public)
 #      - name: Upload SARIF file
 #        # Only upload if Checkov ran (success or failure)
-#        if: success() || failure()
+#        if: success()
 #        uses: github/codeql-action/upload-sarif@v4
 #        with:
 #          sarif_file: results.sarif

@@ -3,6 +3,11 @@ variable "tenancy_ocid" {
   type        = string
 }
 
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key for VM access"
+  type        = string
+}
+
 variable "frontend_domain_name" {
   description = "Domain name for the frontend load balancer"
   type        = string
@@ -45,7 +50,7 @@ variable "environment" {
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
-  default     = "ha-backend"
+  default     = "ha-stack"
 }
 
 variable "vcn_cidr" {
@@ -218,19 +223,29 @@ variable "private_security_list_ingress_security_rules" {
       port_min = 8443
       port_max = 8443
     },
+    {
+      protocol = "6"
+      port_min = 8080
+      port_max = 8080
+    },
+    {
+      protocol = "6"
+      port_min = 8000
+      port_max = 8000
+    },
   ]
 }
 
 variable "enable_database" {
   description = "Enable or disable the Autonomous Database"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_backend_lb" {
   description = "Enable or disable the Backend Load Balancer"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_frontend_lb" {
@@ -248,13 +263,13 @@ variable "enable_dns" {
 variable "enable_storage" {
   description = "Enable or disable Storage resources"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_backups" {
   description = "Enable automated backups for block volumes"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "object_events_enabled" {
@@ -272,7 +287,7 @@ variable "enable_bastion" {
 variable "enable_ocir" {
   description = "Enable or disable OCI Container Registry"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "is_pv_encryption_in_transit_enabled" {
@@ -291,4 +306,10 @@ variable "free_tier_mode" {
   description = "Enable strict Always Free limits validation"
   type        = bool
   default     = true
+}
+
+variable "namespace" {
+  description = "Object Storage Namespace"
+  type        = string
+  default     = ""
 }

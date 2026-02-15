@@ -28,6 +28,10 @@ skip-check:
   - CKV_OCI_3  # Block Volume CMK not required - Default encryption meets our
   # compliance baseline. Review if handling PCI/PHI/PII data.
 
+  - CKV_OCI_2  # Ensure OCI Block Storage Block Volume has backup enabled
+    # Justification: Backup is enabled via separate oci_core_volume_backup_policy_assignment resource.
+    # Checkov does not detect the association between the volume and the backup policy assignment.
+
 # Framework configuration
 framework:
   - terraform

@@ -71,16 +71,16 @@ This configuration deploys:
 
 2.  **Plan the deployment:**
     ```bash
-    terraform plan 
+    terraform plan -out tfplan.out
     # Or
-    # terraform plan -var-file="env/local.tfvars"
+    # terraform plan -var-file="env/local.tfvars" -out tfplan.out
     ```
 
 3.  **Apply the configuration:**
     ```bash
-    terraform apply
+    terraform apply tfplan.out
     # Or
-    # terraform apply -var-file="env/local.tfvars"
+    # terraform apply -var-file="env/local.tfvars" 
     ```
 
 ## Outputs
@@ -97,17 +97,18 @@ After a successful apply, Terraform will output key information, including:
 Use the OCI Bastion service to connect to your private instances:
 
 ```bash
-# Create a port forwarding session (replace values from outputs)
-oci bastion session create-port-forwarding \
-  --bastion-id <bastion_id> \
-  --display-name "ssh-session" \
-  --key-type PUB \
-  --ssh-public-key-file ~/.ssh/id_rsa.pub \
-  --target-private-ip <instance_private_ip> \
-  --target-port 22
+terraform output bastion_connection_metadata
+```
 
-# Connect via SSH
-ssh -i ~/.ssh/id_rsa -o ProxyCommand="ssh -i ~/.ssh/id_rsa -W %h:%p <session_id>@host.bastion.<region>.oci.oraclecloud.com" opc@<instance_private_ip>
+### Connect via SSH
+```shell
+ssh -i <your-private-key-path> -o ProxyCommand="ssh -i <your-private-key-path> -W <instance_private_ip>:22 <session_id>@host.bastion.<region>.oci.oraclecloud.com" -p 22 ubuntu@<instance_private_ip>
+```
+
+### Test Load Balancer
+```shell
+terraform refresh -var-file="env/local.tfvars"
+terraform output frontend_load_balancer_public_ip
 ```
 
 ## Cleanup

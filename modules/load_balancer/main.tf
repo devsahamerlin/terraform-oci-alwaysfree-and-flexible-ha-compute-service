@@ -52,45 +52,45 @@ resource "oci_load_balancer_backend" "app_backends" {
   weight           = 1
 }
 
-# Redirect Rule Set (HTTP -> HTTPS)
-resource "oci_load_balancer_rule_set" "http_to_https_redirect" {
-  count            = var.is_ssl_enabled ? 1 : 0
-  load_balancer_id = oci_load_balancer_load_balancer.app_lb.id
-  name             = "http_to_https_redirect"
-
-  items {
-    action = "REDIRECT"
-    conditions {
-      attribute_name  = "PATH"
-      attribute_value = "/"
-      operator        = "PREFIX_MATCH"
-    }
-    description = "Redirect HTTP to HTTPS"
-    redirect_uri {
-      protocol = "https"
-      port     = var.lb_listener_port
-      host     = "{host}"
-      path     = "{path}"
-      query    = "{query}"
-    }
-    response_code = 301
-  }
-}
-
-# HTTP Listener (redirects to HTTPS)
-resource "oci_load_balancer_listener" "http_listener" {
-  load_balancer_id         = oci_load_balancer_load_balancer.app_lb.id
-  name                     = "http-${var.name}-listener"
-  default_backend_set_name = oci_load_balancer_backend_set.app_backend_set.name
-  port                     = 80
-  protocol                 = "HTTP"
-  path_route_set_name      = oci_load_balancer_path_route_set.app_path_routes.name
-  rule_set_names           = var.is_ssl_enabled ? [oci_load_balancer_rule_set.http_to_https_redirect[0].name] : []
-
-  connection_configuration {
-    idle_timeout_in_seconds = 300
-  }
-}
+# # Redirect Rule Set (HTTP -> HTTPS)
+# resource "oci_load_balancer_rule_set" "http_to_https_redirect" {
+#   count            = var.is_ssl_enabled ? 1 : 0
+#   load_balancer_id = oci_load_balancer_load_balancer.app_lb.id
+#   name             = "http_to_https_redirect"
+#
+#   items {
+#     action = "REDIRECT"
+#     conditions {
+#       attribute_name  = "PATH"
+#       attribute_value = "/"
+#       operator        = "PREFIX_MATCH"
+#     }
+#     description = "Redirect HTTP to HTTPS"
+#     redirect_uri {
+#       protocol = "https"
+#       port     = var.lb_listener_port
+#       host     = "{host}"
+#       path     = "{path}"
+#       query    = "{query}"
+#     }
+#     response_code = 301
+#   }
+# }
+#
+# # HTTP Listener (redirects to HTTPS)
+# resource "oci_load_balancer_listener" "http_listener" {
+#   load_balancer_id         = oci_load_balancer_load_balancer.app_lb.id
+#   name                     = "http-${var.name}-listener"
+#   default_backend_set_name = oci_load_balancer_backend_set.app_backend_set.name
+#   port                     = 80
+#   protocol                 = "HTTP"
+#   path_route_set_name      = oci_load_balancer_path_route_set.app_path_routes.name
+#   rule_set_names           = var.is_ssl_enabled ? [oci_load_balancer_rule_set.http_to_https_redirect[0].name] : []
+#
+#   connection_configuration {
+#     idle_timeout_in_seconds = 300
+#   }
+# }
 
 # HTTPS Listener (requires SSL certificate)
 resource "oci_load_balancer_listener" "https_listener" {
