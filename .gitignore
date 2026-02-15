@@ -1,0 +1,25 @@
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfstate
+*.tfstate.*
+*.tfrun.json
+
+# Local .terraform override files
+
+# Crash log files
+crash.log
+.idea
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.p12
+secrets.yml
+secrets.yaml
+.aws/
+.ssh/
+credentials/
+local.md
+README-docs.md

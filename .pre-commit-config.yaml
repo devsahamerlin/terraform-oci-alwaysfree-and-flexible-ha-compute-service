@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+
+      - id: terraform_fmt
+        args:
+          - --args=-recursive
+
+      - id: terraform_validate
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+
+      - id: terraform_tflint
+        args:
+          - --args=--recursive
+
+      - id: terraform_checkov
+        args:
+          - --args=--framework=terraform
+          - --args=--skip-check=CKV_TF_1,CKV_OCI_17,CKV_OCI_19,CKV_OCI_3,CKV_OCI_20,CKV_OCI_9

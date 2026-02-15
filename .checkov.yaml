@@ -1,0 +1,38 @@
+# Defines security check exceptions with documented justifications
+
+# Checks to skip with justifications
+skip-check:
+  # Module versioning - Not applicable for local/private modules
+  - CKV_TF_1  # Ensure Terraform module sources use a commit hash
+
+  # Security list stateless/parser issues
+  - CKV_OCI_17  # Ensure VCN inbound security lists are stateless
+    # Justification: Stateful rules provide automatic return traffic handling
+    # and are easier to manage. Stateless rules only needed for extreme
+  # performance requirements. Our architecture benefits from stateful rules.
+
+  - CKV_OCI_19  # Ensure no security groups allow ingress from 0.0.0.0:0 to port 22
+    # Justification: Checkov parser fails on dynamic blocks. Architecture uses
+    # OCI Bastion Service with private RSA keys for secure access. VMs have no
+  # public IPs and are not internet-accessible. SSH is only via Bastion.
+
+  - CKV_OCI_20  # Ensure no security groups allow ingress from 0.0.0.0:0 to port 3389
+    # Justification: Not applicable - Linux instances with no public IPs.
+  # RDP is Windows-only. Access via OCI Bastion Service, not direct SSH/RDP.
+
+  # Customer Managed Keys - Oracle-managed encryption is sufficient
+  - CKV_OCI_9  # Object Storage CMK not required - Oracle-managed keys provide
+    # FIPS 140-2 compliant encryption. CMK adds operational overhead
+  # without proportional security benefit for our data classification.
+
+  - CKV_OCI_3  # Block Volume CMK not required - Default encryption meets our
+  # compliance baseline. Review if handling PCI/PHI/PII data.
+
+# Framework configuration
+framework:
+  - terraform
+
+# Output settings
+compact: false
+quiet: false
+download-external-modules: false

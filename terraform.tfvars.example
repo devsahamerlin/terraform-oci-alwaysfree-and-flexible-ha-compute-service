@@ -1,0 +1,54 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+# OCI Authentication
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaxxxxxxxxxx"
+user_ocid        = "ocid1.user.oc1..aaaaaaaxxxxxxxxxx"
+fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-phoenix-1"
+cloud_init_config = file("${path.module}/cloud-init.yaml")
+
+# Compartment
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaxxxxxxxxxx"
+
+# Project Settings
+environment  = "dev"
+project_name = "ha-backend"
+
+# Network
+vcn_cidr             = "10.0.0.0/16"
+public_subnet_cidr   = "10.0.1.0/24"
+private_subnet_cidr  = "10.0.2.0/24"
+database_subnet_cidr = "10.0.3.0/24"
+
+# Compute
+vm_count               = 2
+vm_shape               = "VM.Standard.A1.Flex"
+vm_ocpus               = 2
+vm_memory_gb           = 12
+vm_boot_volume_size_gb = 50
+ssh_public_key_path    = "~/.ssh/id_rsa.pub"
+
+# Database
+atp_db_name        = "habackenddb"
+atp_admin_password = "YourSecurePassword123!"
+enable_database    = true
+
+# Load Balancers
+enable_frontend_lb = true
+enable_backend_lb  = true
+
+# Other Services
+enable_dns     = true
+enable_storage = true
+enable_bastion = true
+enable_ocir    = true
+
+# Security
+allowed_ssh_cidrs = ["0.0.0.0/0"]
+
+# Tags
+tags = {
+  ManagedBy  = "Terraform"
+  CostCenter = "AlwaysFree"
+}

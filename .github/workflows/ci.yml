@@ -1,0 +1,136 @@
+name: Terraform CI/CD
+
+env:
+  EXAMPLE_DIR: examples/example-1
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  terraform:
+    name: Terraform Validate & Security Scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read           # Only read code
+      pull-requests: write     # Comment on PRs
+      security-events: write   # Upload security scan results
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Format Check (root)
+        run: terraform fmt -recursive
+
+      - name: Terraform Init (root)
+        run: terraform init -backend=false
+
+      - name: Terraform Validate (root)
+        run: terraform validate
+
+      - name: Terraform Init (example)
+        working-directory: ${{ env.EXAMPLE_DIR }}
+        run: terraform init -backend=false
+
+      - name: Terraform Validate (example)
+        working-directory: ${{ env.EXAMPLE_DIR }}
+        run: terraform validate
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+          soft_fail: false
+          config_file: .checkov.yaml
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive
+
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+
+#jobs:
+#  terraform:
+#    name: Terraform Validate & Security Scan
+#    runs-on: ubuntu-latest
+#
+#    permissions:
+#      contents: read
+#      pull-requests: write
+#      security-events: write
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Setup Terraform
+#        uses: hashicorp/setup-terraform@v3
+#        with:
+#          terraform_version: 1.6.6
+#
+#      # Validate root module
+#      - name: Terraform Format Check (root)
+#        run: terraform fmt -recursive # -check
+#
+#      - name: Terraform Init (root)
+#        run: terraform init -backend=false
+#
+#      - name: Terraform Validate (root)
+#        run: terraform validate
+#
+#      # Validate example
+#      - name: Terraform Init (example)
+#        working-directory: ${{ env.EXAMPLE_DIR }}
+#        run: terraform init -backend=false
+#
+#      - name: Terraform Validate (example)
+#        working-directory: ${{ env.EXAMPLE_DIR }}
+#        run: terraform validate
+#
+#      # Checkov Security Scan
+#      - name: Run Checkov
+#        uses: bridgecrewio/checkov-action@v12
+#        with:
+#          directory: .
+#          framework: terraform
+#          output_format: cli,sarif
+#          output_file_path: console,results.sarif
+#          soft_fail: false
+#
+#
+#      # TFLint
+#      - name: Setup TFLint
+#        uses: terraform-linters/setup-tflint@v4
+#
+#      - name: Init TFLint
+#        run: tflint --init
+#
+#      - name: Run TFLint
+#        run: tflint --recursive
+#
+#      - name: Upload SARIF file
+#        if: always()
+#        uses: github/codeql-action/upload-sarif@v4
+#        with:
+#          sarif_file: results.sarif

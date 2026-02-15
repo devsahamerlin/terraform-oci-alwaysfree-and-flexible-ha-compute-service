@@ -1,0 +1,27 @@
+# Secret files
+.env
+.env.*
+
+# Credential directories
+.aws/
+.ssh/
+.oci/
+.gcp/
+.azure/
+credentials/
+
+# Terraform files
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Other sensitive files
+*.pem
+*.key
+*.cert
+id_rsa
+id_rsa.pub
+secrets.yml
+secrets.yaml
+config/secrets.*
