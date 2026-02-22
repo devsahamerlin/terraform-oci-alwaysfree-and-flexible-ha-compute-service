@@ -218,7 +218,7 @@ This module provisions a production-ready OCI infrastructure optimized for Alway
 - ✅ Stateful security lists
 - ✅ Regular automated security scans
 
-### Quality
+### Quality Check
 
 | Check             | Tool                 | Status      |
 |-------------------|----------------------|-------------|
@@ -228,6 +228,91 @@ This module provisions a production-ready OCI infrastructure optimized for Alway
 | Security Scanning | Checkov              | ✅ Automated |
 | Pre-commit Hooks  | pre-commit           | ✅ Enabled   |
 
+```mermaid
+graph LR
+%% ══════════════════════════════════════════
+%% ACTORS
+%% ══════════════════════════════════════════
+    Dev(["👤 IaC Engineer"])
+    GHSec["🔐 GitHub Security\nDashboard"]
+
+%% ══════════════════════════════════════════
+%% COLUMN 1 — Git Flow
+%% ══════════════════════════════════════════
+    subgraph GIT["Git Flow"]
+        direction TB
+        Feature["feature/* branch"]
+        PR["Pull Request\nopened against main"]
+        Gate{"All Checks\nPassed?"}
+        Main["main branch"]
+    end
+
+%% ══════════════════════════════════════════
+%% COLUMN 2 — CI on Pull Request
+%% ══════════════════════════════════════════
+    subgraph CI_PR["CI — Pull Request Trigger"]
+        direction TB
+        PR_FMT["Format Check"]
+        PR_VAL["✅ Validate\nRoot + Example"]
+        PR_SEC["🛡️ Checkov Scan"]
+        PR_LINT["🔍 TFLint"]
+        PR_CMT["💬 Post Results\nto PR Comment"]
+    end
+
+%% ══════════════════════════════════════════
+%% COLUMN 3 — CI on Main
+%% ══════════════════════════════════════════
+    subgraph CI_MAIN["CI — Push to Main Trigger"]
+        direction TB
+        M_FMT["Format Check"]
+        M_VAL["✅ Validate\nRoot + Example"]
+        M_SEC["🛡️ Checkov Scan"]
+        M_LINT["🔍 TFLint"]
+        M_DONE["✅ Main Branch\nSecurity Verified"]
+    end
+
+%% ══════════════════════════════════════════
+%% FLOWS — Git
+%% ══════════════════════════════════════════
+    Dev -->|"① git push"| Feature
+    Feature -->|"② open PR"| PR
+    PR -->|"③ triggers"| CI_PR
+    Gate -->|"❌ fixes required"| Feature
+    Gate -->|"✅ merge"| Main
+    Main -->|"⑤ triggers"| CI_MAIN
+
+%% ══════════════════════════════════════════
+%% FLOWS — PR Pipeline (strict top→bottom)
+%% ══════════════════════════════════════════
+    PR_FMT --> PR_VAL --> PR_SEC --> PR_LINT --> PR_CMT
+    PR_CMT -->|"④ review"| Gate
+    PR_SEC -.->|"SARIF upload"| GHSec
+
+%% ══════════════════════════════════════════
+%% FLOWS — Main Pipeline (strict top→bottom)
+%% ══════════════════════════════════════════
+    M_FMT --> M_VAL --> M_SEC --> M_LINT --> M_DONE
+    M_SEC -.->|"SARIF upload"| GHSec
+
+%% ══════════════════════════════════════════
+%% STYLING
+%% ══════════════════════════════════════════
+    classDef actor    fill:#fafafa,stroke:#607d8b,stroke-width:2px,stroke-dasharray:5 5
+    classDef git      fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
+    classDef validate fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+    classDef security fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef gate     fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef done     fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,color:#1b5e20
+    classDef ghsec    fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#b71c1c
+
+    class Dev,GHSec actor
+    class Feature,PR,Main git
+    class PR_FMT,PR_VAL,M_FMT,M_VAL validate
+    class PR_SEC,PR_LINT,PR_CMT,M_SEC,M_LINT security
+    class Gate gate
+    class M_DONE done
+    class GHSec ghsec
+```
 ---
 
 ## Prerequisites
