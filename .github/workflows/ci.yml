@@ -16,7 +16,6 @@ jobs:
     name: Terraform Validate & Security Scan
     runs-on: ubuntu-latest
 
-    # Complete permissions for SARIF upload and security scanning
     permissions:
       contents: read           # Read repository contents
       pull-requests: write     # Write PR comments
