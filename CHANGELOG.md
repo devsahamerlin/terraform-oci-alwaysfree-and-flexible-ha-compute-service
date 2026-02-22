@@ -7,7 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ---
 
-## [1.0.0] - 2026-02-15
+## [1.0.0] - 2026-02-22
 
 ### Added
 
@@ -17,7 +17,6 @@ and this project adheres to Semantic Versioning.
     - Compute (A1 Flex default)
     - Bastion-based secure access
     - Load Balancer support
-    - Object Storage
     - DNS Zone and RRSet
     - Container Registry
     - Database module
@@ -32,9 +31,9 @@ and this project adheres to Semantic Versioning.
     - terraform validate
     - tflint
     - checkov
-- SARIF upload to GitHub Code Scanning
+- Security Result Updated in Pull Request as comment
 - Version constraints added to all modules
-- Production-ready module structure
+- Ready to use module structure
 
 ### Security
 
