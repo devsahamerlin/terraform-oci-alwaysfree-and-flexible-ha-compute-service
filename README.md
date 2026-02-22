@@ -62,10 +62,10 @@ It features:
 - **Automation**: One-click deployment using Terraform.
 
 ### Key Features
-- **💰 100% Free**: Designed to fit entirely within OCI's Always Free limits (4 ARM OCPUs, 24GB RAM, 200GB Storage).
-- **🛡️ Secure by Design**: Backend services and databases are isolated in private subnets. No public IPs on compute instances.
-- **🚀 High Performance**: Uses ARM-based Ampere A1 instances which offer superior performance over traditional x86 micro instances.
-- **🔄 High Availability**: Architecture designed to survive instance failures.
+- **100% Free (But Flexible based on your Configuration to Paid tier)**: Designed to fit entirely within OCI's Always Free limits (4 ARM OCPUs, 24GB RAM, 200GB Storage).
+- **Secure by Design**: Backend services and databases are isolated in private subnets. No public IPs on compute instances.
+- **High Performance**: Uses ARM-based Ampere A1 instances which offer superior performance over traditional x86 micro instances.
+- **High Availability**: Architecture designed to survive instance failures.
 
 ---
 
@@ -75,66 +75,96 @@ It features:
 
 ```mermaid
 graph TB
-%% External Layer
-    Internet([🌐 Internet])
-Admin([👨‍💻 Administrator])
+%% ── External Actors ──────────────────────────────────────────
+    Internet([Internet])
+Admin([Administrator])
 
-subgraph OCI["☁️ Oracle Cloud Infrastructure"]
+%% ── Oracle Cloud Infrastructure ──────────────────────────────
+subgraph OCI["Oracle Cloud Infrastructure"]
 direction TB
 
-subgraph VCN["Virtual Cloud Network - 10.0.0.0/16"]
+subgraph VCN["Virtual Cloud Network — 10.0.0.0/16"]
 direction TB
 
-%% Public Layer
-subgraph PublicLayer["📡 Public Subnet - 10.0.1.0/24"]
-IGW[Internet Gateway]
-LB[Load Balancer<br/>HTTPS/HTTP]
-NAT[NAT Gateway]
-end
-
-%% Application Layer
-subgraph AppLayer["🔒 Private Subnet - 10.0.2.0/24"]
+%% ── Layer 1 : Public Subnet ──────────────────────────
+subgraph PublicLayer["Public Subnet — 10.0.1.0/24"]
 direction LR
-VM1[VM-1<br/>No Public IP]
-VM2[VM-2<br/>No Public IP]
-VMn[VM-N<br/>No Public IP]
+IGW["Internet Gateway"]
+LB["Load Balancer\nHTTPS / HTTP"]
+NAT["NAT Gateway"]
 end
 
-%% Data Layer
-subgraph DataLayer["🗄️ Database Subnet - 10.0.3.0/24"]
-DB[(Database<br/>ATP)]
+%% ── Layer 2 : Private Subnet ─────────────────────────
+subgraph AppLayer["Private Subnet — 10.0.2.0/24"]
+direction LR
+VM1["VM-1\nNo Public IP"]
+VM2["VM-2\nNo Public IP"]
+VMn["VM-N\nNo Public IP"]
 end
 
-%% Services
-SGW[Service Gateway]
-Bastion[🔐 Bastion Service]
+%% ── Layer 3 : Database Subnet ────────────────────────
+subgraph DataLayer["Database Subnet — 10.0.3.0/24"]
+DB[("ATP Database")]
 end
 
-Storage[(Object Storage)]
+%% ── Layer 4 : VCN Services ───────────────────────────
+subgraph ServicesLayer["VCN Services"]
+direction LR
+SGW["Service Gateway"]
+Bastion["Bastion Service"]
+end
 end
 
-%% Main Traffic Flow
-Internet -->|1. HTTPS Request| IGW
-IGW --> LB
-LB -->|2. Distribute| VM1 & VM2 & VMn
-VM1 & VM2 & VMn -->|3. Query| DB
+Storage[("Object Storage")]
+end
 
-%% Outbound & Storage
-VM1 & VM2 & VMn -->|Updates| NAT -->|Internet| IGW
-VM1 & VM2 & VMn -->|Backups| SGW --> Storage
+%% ═══════════════════════════════════════════════════════════
+%% TRAFFIC FLOWS — ordered top-to-bottom, no cross-layer jumps
+%% ═══════════════════════════════════════════════════════════
 
-%% Admin Access
-Admin -->|SSH via<br/>Bastion Only| Bastion
-Bastion -.->|Secure Access| VM1 & VM2 & VMn
+%% 1 — Inbound path (straight vertical)
+Internet -->|"① HTTPS"| IGW
+IGW      -->|"② Route"| LB
+LB       -->|"③ Distribute"| VM1
+LB       -->|"③ Distribute"| VM2
+LB       -->|"③ Distribute"| VMn
 
-%% Styling
-classDef public fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-classDef private fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-classDef data fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+%% 2 — App → DB (straight down)
+VM1 -->|"④ Query"| DB
+VM2 -->|"④ Query"| DB
+VMn -->|"④ Query"| DB
+
+%% 3 — Outbound updates (VMs → NAT only, NAT already in PublicLayer)
+VM1 -->|"Updates"| NAT
+VM2 -->|"Updates"| NAT
+VMn -->|"Updates"| NAT
+
+%% 4 — Backups future roadmap (dashed, contained within OCI)
+VM1 -.->|"Backups 'Future Roadmap'"| SGW
+VM2 -.->|"Backups 'Future Roadmap'"| SGW
+VMn -.->|"Backups 'Future Roadmap'"| SGW
+SGW -.->|"Future Roadmap"| Storage
+
+%% 5 — Admin access (isolated right side)
+Admin   -->|"SSH via Bastion Only"| Bastion
+Bastion -.->|"Secure Access"| VM1
+Bastion -.->|"Secure Access"| VM2
+Bastion -.->|"Secure Access"| VMn
+
+%% ═══════════════════════════════════════════════════════════
+%% STYLING
+%% ═══════════════════════════════════════════════════════════
+classDef public   fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
+classDef private  fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+classDef data     fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+classDef services fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+classDef external fill:#fafafa,stroke:#607d8b,stroke-width:2px,stroke-dasharray:5 5
 
 class IGW,LB,NAT public
-class VM1,VM2,VMn,Bastion private
+class VM1,VM2,VMn private
 class DB,Storage data
+class SGW,Bastion services
+class Internet,Admin external
 ```
 
 ### Architecture Components
@@ -168,7 +198,7 @@ class DB,Storage data
 
 ---
 
-## 🛡️ Security & Compliance
+## Security & Compliance
 
 This module provisions a production-ready OCI infrastructure optimized for Always Free usage by default, but fully flexible for paid instance types and horizontal scaling.
 
@@ -200,7 +230,7 @@ This module provisions a production-ready OCI infrastructure optimized for Alway
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 1. **OCI Account**: Sign up at [https://cloud.oracle.com/](https://cloud.oracle.com/).
 2. **API Keys**: Generate API signing keys in the OCI Console.
@@ -209,7 +239,7 @@ This module provisions a production-ready OCI infrastructure optimized for Alway
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 To run all checks locally:
 
@@ -223,7 +253,7 @@ pre-commit run --all-files
 
 ---
 
-## 💻 Usage
+## Usage
 
 ### Integration as a Terraform Module
 
@@ -231,7 +261,7 @@ You can integrate this stack as a module into your existing Terraform infrastruc
 
 ```hcl
 module "oci_ha_stack" {
-  source = "git::https://github.com/your-username/terraform-oci-alwaysfree-production-ha-stack.git?ref=main"
+  source = "git::https://github.com/devsahamerlin/terraform-oci-alwaysfree-and-flexible-ha-compute-service.git?ref=main"
 
   # OCI Authentication
   tenancy_ocid     = var.tenancy_ocid
@@ -287,7 +317,7 @@ terraform refresh -var-file="env/local.tfvars"
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ## Requirements
 
@@ -378,7 +408,7 @@ terraform refresh -var-file="env/local.tfvars"
 | <a name="input_tenancy_ocid"></a> [tenancy\_ocid](#input\_tenancy\_ocid) | OCI Tenancy OCID | `string` | n/a | yes |
 | <a name="input_vcn_cidr"></a> [vcn\_cidr](#input\_vcn\_cidr) | VCN CIDR block | `string` | `"10.0.0.0/16"` | no |
 | <a name="input_vm_boot_volume_size_gb"></a> [vm\_boot\_volume\_size\_gb](#input\_vm\_boot\_volume\_size\_gb) | Boot volume size in GB | `number` | `50` | no |
-| <a name="input_vm_count"></a> [vm\_count](#input\_vm\_count) | Number of VM instances | `number` | `2` | no |
+| <a name="input_vm_count"></a> [vm\_count](#input\_vm_count) | Number of VM instances | `number` | `2` | no |
 | <a name="input_vm_memory_gb"></a> [vm\_memory\_gb](#input\_vm\_memory\_gb) | Memory in GB per VM (max 24GB for A1 free tier total) | `number` | `12` | no |
 | <a name="input_vm_ocpus"></a> [vm\_ocpus](#input\_vm\_ocpus) | Number of OCPUs per VM (max 4 for A1 free tier total) | `number` | `2` | no |
 | <a name="input_vm_shape"></a> [vm\_shape](#input\_vm\_shape) | VM shape (VM.Standard.E2.1.Micro or VM.Standard.A1.Flex) | `string` | `"VM.Standard.A1.Flex"` | no |
