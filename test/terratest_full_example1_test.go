@@ -71,6 +71,13 @@ func optionalEnv(key, fallback string) string {
 	return fallback
 }
 
+func getTerraformBinary() string {
+	if bin := os.Getenv("TF_BINARY"); bin == "terraform" {
+		return "terraform"
+	}
+	return "tofu"
+}
+
 // ─────────────────────────────────────────────
 // TEST: Minimal smoke test (fast, cheap, CI-safe)
 // Validates networking + compute only.
@@ -84,6 +91,7 @@ func TestSmokeNetworkAndCompute(t *testing.T) {
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/example-1",
+		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
 			// Auth
 			"tenancy_ocid":     auth.TenancyOcid,
@@ -175,6 +183,7 @@ func TestStagingFullStack(t *testing.T) {
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/example-1",
+		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
 			// Auth
 			"tenancy_ocid":     auth.TenancyOcid,
@@ -334,6 +343,7 @@ func TestIdempotency(t *testing.T) {
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../examples/example-1",
+		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
 			"tenancy_ocid":     auth.TenancyOcid,
 			"user_ocid":        auth.UserOcid,

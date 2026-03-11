@@ -2,6 +2,7 @@ name: Terraform CI/CD
 
 env:
   EXAMPLE_DIR: examples/example-1
+  TF_BINARY: tofu # or terraform
 
 on:
   push:
@@ -14,20 +15,54 @@ on:
 jobs:
   terratest-smoke:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write OCI private key (base64-safe)
+      - name: Resolve IaC binary
+        id: iac
         run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY_B64 }}" | base64 --decode > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
+          FORCED="${{ vars.TF_BINARY }}"   # variable de repo (pas secret), ex: "terraform"
 
-      - name: Write SSH public key (base64-safe)
+          if [ "$FORCED" = "terraform" ]; then
+            echo "binary=terraform" >> $GITHUB_OUTPUT
+            echo "tool=terraform"   >> $GITHUB_OUTPUT
+          else
+            echo "binary=tofu"    >> $GITHUB_OUTPUT
+            echo "tool=opentofu"  >> $GITHUB_OUTPUT
+          fi
+
+          echo "Resolved IaC tool: $(cat $GITHUB_OUTPUT | grep binary)"
+
+      - name: Install OpenTofu
+        if: steps.iac.outputs.binary == 'tofu'
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.11.2"
+
+      - name: Install Terraform
+        if: steps.iac.outputs.binary == 'terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.6"
+          terraform_wrapper: false
+
+      - name: Verify binary
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PUBLIC_KEY_B64 }}" | base64 --decode > ~/.ssh/id_rsa_ci.pub
-          chmod 644 ~/.ssh/id_rsa_ci.pub
+          echo "Using: ${{ steps.iac.outputs.tool }}"
+          ${{ steps.iac.outputs.binary }} version
+          
+
+      - name: Write OCI private key
+        run: |
+          mkdir -p ${{ github.workspace }}/.keys
+          echo "${{ secrets.OCI_PRIVATE_KEY_B64 }}" | base64 --decode > ${{ github.workspace }}/.keys/oci_api_key.pem
+          chmod 600 ${{ github.workspace }}/.keys/oci_api_key.pem
+
+      - name: Write SSH public key
+        run: |
+          echo "${{ secrets.SSH_PUBLIC_KEY_B64 }}" | base64 --decode > ${{ github.workspace }}/.keys/id_rsa_ci.pub
+          chmod 644 ${{ github.workspace }}/.keys/id_rsa_ci.pub
 
       # ── Setup Go ────────────────────────────────────────────────────────────
       - uses: actions/setup-go@v5
@@ -35,12 +70,13 @@ jobs:
           go-version: '1.22'
 
       # ── Run Terratest ────────────────────────────────────────────────────────
-      - name: Run Smoke Test
+      - name: Run Smoke Test (${{ steps.iac.outputs.tool }})
         working-directory: test/
         run: |
           go mod tidy
           go test -v -run TestSmokeNetworkAndCompute -timeout 20m
         env:
+          TF_BINARY: ${{ steps.iac.outputs.binary }}
           # Auth scalaires — stockés directs en secret
           TF_VAR_tenancy_ocid:  ${{ secrets.TF_VAR_TENANCY_OCID }}
           TF_VAR_user_ocid:     ${{ secrets.TF_VAR_USER_OCID }}
@@ -53,8 +89,8 @@ jobs:
           TF_VAR_frontend_domain_name: ${{ secrets.TF_VAR_frontend_domain_name }}
 
           # Chemins — construits dynamiquement à partir des fichiers écrits ci-dessus
-          TF_VAR_private_key_path:    ${{ github.workspace }}/../../../root/.oci/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ github.workspace }}/../../../root/.ssh/id_rsa_ci.pub
+          TF_VAR_private_key_path:    ${{ github.workspace }}/.keys/oci_api_key.pem
+          TF_VAR_ssh_public_key_path: ${{ github.workspace }}/.keys/id_rsa_ci.pub
 
       # ── Cleanup obligatoire ──────────────────────────────────────────────────
       - name: Cleanup key files
