@@ -19,28 +19,46 @@ This project delivers a **High Availability (HA)** architecture with **zero esti
 
 ## Table of Contents
 
-- [Overview](#-overview)
-  - [The Challenge](#the-challenge)
-  - [The Solution](#the-solution)
-  - [Key Features](#key-features)
-- [Architecture](#-architecture)
-  - [Diagram](#architecture-diagram)
-  - [Components](#architecture-components)
-- [Security & Compliance](#-security--compliance)
-  - [Posture](#posture)
-  - [Quality](#quality)
-- [Prerequisites](#-prerequisites)
-- [Usage](#-usage)
-  - [Integration as a Terraform Module](#integration-as-a-terraform-module)
-  - [Standalone Deployment](#setup-instructions-standalone)
-- [Configuration](#-configuration)
-- [Operations](#-operations)
-  - [Accessing VMs](#accessing-vms-via-bastion)
-  - [Post-Deployment](#post-deployment-configuration)
-  - [Cost Optimization](#cost-optimization)
-  - [Backup Strategy](#backup-strategy)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing & License](#-contributing--license)
+- [OCI Flexible and Always Free High Availability Infrastructure](#oci-flexible-and-always-free-high-availability-infrastructure)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+    - [The Challenge](#the-challenge)
+    - [The Solution](#the-solution)
+    - [Key Features](#key-features)
+  - [Architecture](#architecture)
+    - [Architecture Diagram](#architecture-diagram)
+    - [Architecture Components](#architecture-components)
+      - [Network](#network)
+      - [Compute](#compute)
+      - [Database](#database)
+      - [Storage](#storage)
+      - [Security](#security)
+  - [Security \& Compliance](#security--compliance)
+    - [Posture](#posture)
+    - [Quality Check](#quality-check)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start](#quick-start)
+  - [Usage](#usage)
+    - [Integration as a Terraform Module](#integration-as-a-terraform-module)
+    - [Setup Instructions (Standalone)](#setup-instructions-standalone)
+      - [1. Get My Public IP Address](#1-get-my-public-ip-address)
+      - [2. Generate OCI API Keys](#2-generate-oci-api-keys)
+      - [3. Configure Terraform Variables](#3-configure-terraform-variables)
+      - [4. Deploy](#4-deploy)
+  - [Configuration](#configuration)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
+  - [Operations](#operations)
+    - [Accessing VMs via Bastion](#accessing-vms-via-bastion)
+    - [Post-Deployment Configuration](#post-deployment-configuration)
+    - [Cost Optimization](#cost-optimization)
+    - [Backup Strategy](#backup-strategy)
+  - [Troubleshooting](#troubleshooting)
+  - [Contributing \& License](#contributing--license)
 
 ---
 
@@ -62,12 +80,32 @@ It features:
 - **Automation**: One-click deployment using Terraform.
 
 ### Key Features
-- **100% Free (But Flexible based on your Configuration to Paid tier)**: Designed to fit entirely within OCI's Always Free limits (4 ARM OCPUs, 24GB RAM, 200GB Storage).
+- **100% Free or Paid**: Designed to fit entirely within OCI's Always Free limits (4 ARM OCPUs, 24GB RAM, 200GB Storage), but fully flexible for paid compute shapes by disabling `free_tier_mode`.
 - **Secure by Design**: Backend services and databases are isolated in private subnets. No public IPs on compute instances.
 - **High Performance**: Uses ARM-based Ampere A1 instances which offer superior performance over traditional x86 micro instances.
 - **High Availability**: Architecture designed to survive instance failures.
+- **Flexibility:** Configuration variable: `free_tier_mode`.
+    - **Default (`true`)**: The module enforces strict Always Free limits to ensure you never incur unexpected costs.
+    - **Paid Mode (`false`)**: Disables the limit checks, allowing you to deploy **any compute shape** available in OCI (e.g., AMD E4 Flex, Intel X9, or larger Ampere A1 instances).
 
 ---
+
+### How to Switch
+To move from a free prototype to a paid production workload, simply update your `terraform.tfvars`:
+
+```shell
+# Disable free tier limits
+free_tier_mode = false
+# Configure a paid shape (e.g., AMD E4 Flex)
+vm_shape     = "VM.Standard.E4.Flex"
+vm_ocpus     = 8
+vm_memory_gb = 32
+```
+
+This update allows you to leverage the same production-grade infrastructure—private subnets, load balancers, bastion hosts, and automated security—regardless of whether you are running a small hobby project or a high-traffic application.
+
+The module is fully flexible for Compute on OCI, adapting to your performance needs.
+
 
 ## Architecture
 
@@ -346,9 +384,11 @@ You can integrate this stack as a module into your existing Terraform infrastruc
 
 ```hcl
 module "oci_ha_stack" {
-  source = "git::https://github.com/devsahamerlin/terraform-oci-alwaysfree-and-flexible-ha-compute-service.git?ref=main"
+  # source = "git::https://github.com/devsahamerlin/terraform-oci-alwaysfree-and-flexible-ha-compute-service.git?ref=main"
+  source  = "devsahamerlin/terraform-oci-alwaysfree-and-flexible-ha-compute-service"
+  version = ">= 1.0.0"
 
-  # OCI Authentication
+  # OCI Authentication (Passed from parent module or environment variables)
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
@@ -359,10 +399,40 @@ module "oci_ha_stack" {
   project_name = "my-app"
   environment  = "prod"
 
-  # Configuration
-  vm_count     = 2
+  # Network Configuration
+  vcn_cidr             = "10.0.0.0/16"
+  public_subnet_cidr   = "10.0.1.0/24"
+  private_subnet_cidr  = "10.0.2.0/24"
+  database_subnet_cidr = "10.0.3.0/24"
+  public_security_list_ingress_security_rules  = var.public_security_list_ingress_security_rules
+  private_security_list_ingress_security_rules = var.private_security_list_ingress_security_rules
+
+  # Feature Flags
+  enable_database    = true
+  enable_frontend_lb = true
+  enable_backend_lb  = true
+  enable_bastion     = true
+  enable_dns         = true
+  enable_storage     = true
+  enable_ocir        = true
+
+  # Compute Settings
+  vm_count     = 2 # from 1 to 4 for Always Free Resources
   vm_shape     = "VM.Standard.A1.Flex"
   ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+  # Database Settings
+  atp_db_name        = "myappdb"
+  atp_admin_password = var.db_password # Pass sensitive variables securely
+
+  # Domain Settings
+  frontend_domain_name = "app.example.com"
+  backend_domain_name  = "api.example.com"
+
+  # Other
+  github_actions_email      = "ci@example.com"
+  github_actions_public_key = "ssh-rsa AAAA..."
+  cloud_init_config = file("${path.module}/cloud-init.yaml")
   
   # ... other variables
 }

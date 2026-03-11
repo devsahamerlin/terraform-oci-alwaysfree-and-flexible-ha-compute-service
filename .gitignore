@@ -6,7 +6,8 @@
 *.tfrun.json
 
 # Local .terraform override files
-
+blog-post.md
+social-media-post.md
 # Crash log files
 crash.log
 .idea
