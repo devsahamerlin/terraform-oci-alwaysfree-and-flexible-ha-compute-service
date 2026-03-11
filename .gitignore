@@ -25,3 +25,5 @@ credentials/
 local.md
 README-docs.md
 tfplan.out
+*.log
+go.sum

@@ -6,6 +6,7 @@
 ![OCI Flexible and Always Free](https://img.shields.io/badge/OCI%20Flexible%20And%20Always%20Free-Compliant-brightgreen.svg)
 ![Checkov](https://img.shields.io/badge/Checkov-Policy%20as%20Code-orange.svg)
 ![TFLint](https://img.shields.io/badge/TFLint-latest-blue.svg)
+![Terratest](https://img.shields.io/badge/Terratest-Automated-green.svg)
 ![Ubuntu](https://img.shields.io/badge/OS-Ubuntu-orange.svg)
 ![SARIF](https://img.shields.io/badge/SARIF-Reports-lightgrey.svg)
 ![HA](https://img.shields.io/badge/High%20Availability-Enabled-green.svg)
@@ -58,6 +59,7 @@ This project delivers a **High Availability (HA)** architecture with **zero esti
     - [Cost Optimization](#cost-optimization)
     - [Backup Strategy](#backup-strategy)
   - [Troubleshooting](#troubleshooting)
+  - [Testing](#testing)
   - [Contributing \& License](#contributing--license)
 
 ---
@@ -264,6 +266,7 @@ This module provisions a production-ready OCI infrastructure optimized for Alway
 | Syntax Validation | `terraform validate` | ✅ Automated |
 | Best Practices    | TFLint               | ✅ Automated |
 | Security Scanning | Checkov              | ✅ Automated |
+| Infrastructure Tests | Terratest          | ✅ Automated |
 | Pre-commit Hooks  | pre-commit           | ✅ Enabled   |
 
 ```mermaid
@@ -294,6 +297,7 @@ graph LR
         PR_VAL["✅ Validate\nRoot + Example"]
         PR_SEC["🛡️ Checkov Scan"]
         PR_LINT["🔍 TFLint"]
+        PR_TEST["🧪 Terratest\n(Smoke Tests)"]
         PR_CMT["💬 Post Results\nto PR Comment"]
     end
 
@@ -306,7 +310,8 @@ graph LR
         M_VAL["✅ Validate\nRoot + Example"]
         M_SEC["🛡️ Checkov Scan"]
         M_LINT["🔍 TFLint"]
-        M_DONE["✅ Main Branch\nSecurity Verified"]
+        M_TEST["🧪 Terratest\n(Full Stack)"]
+        M_DONE["✅ Main Branch\nVerified & Secure"]
     end
 
 %% ══════════════════════════════════════════
@@ -322,14 +327,14 @@ graph LR
 %% ══════════════════════════════════════════
 %% FLOWS — PR Pipeline (strict top→bottom)
 %% ══════════════════════════════════════════
-    PR_FMT --> PR_VAL --> PR_SEC --> PR_LINT --> PR_CMT
+    PR_FMT --> PR_VAL --> PR_SEC --> PR_LINT --> PR_TEST --> PR_CMT
     PR_CMT -->|"④ review"| Gate
     PR_SEC -.->|"SARIF upload"| GHSec
 
 %% ══════════════════════════════════════════
 %% FLOWS — Main Pipeline (strict top→bottom)
 %% ══════════════════════════════════════════
-    M_FMT --> M_VAL --> M_SEC --> M_LINT --> M_DONE
+    M_FMT --> M_VAL --> M_SEC --> M_LINT --> M_TEST --> M_DONE
     M_SEC -.->|"SARIF upload"| GHSec
 
 %% ══════════════════════════════════════════
@@ -339,6 +344,7 @@ graph LR
     classDef git      fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
     classDef validate fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
     classDef security fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef test     fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#f57f17
     classDef gate     fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
     classDef done     fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,color:#1b5e20
     classDef ghsec    fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#b71c1c
@@ -347,6 +353,7 @@ graph LR
     class Feature,PR,Main git
     class PR_FMT,PR_VAL,M_FMT,M_VAL validate
     class PR_SEC,PR_LINT,PR_CMT,M_SEC,M_LINT security
+    class PR_TEST,M_TEST test
     class Gate gate
     class M_DONE done
     class GHSec ghsec
@@ -531,7 +538,7 @@ terraform refresh -var-file="env/local.tfvars"
 | <a name="input_allowed_ssh_cidrs"></a> [allowed\_ssh\_cidrs](#input\_allowed\_ssh\_cidrs) | List of CIDR blocks allowed to SSH via Bastion | `list(string)` | <pre>[<br/>  "0.0.0.0/0"<br/>]</pre> | no |
 | <a name="input_are_legacy_imds_endpoints_disabled"></a> [are\_legacy\_imds\_endpoints\_disabled](#input\_are\_legacy\_imds\_endpoints\_disabled) | Disable legacy IMDS endpoints, IMDSv1 (legacy metadata service) is vulnerable to Server-Side Request Forgery (SSRF) attacks, Any compromised process on the instance can access sensitive metadata without authentication, This is a known attack vector used in real-world cloud breaches, Disabling legacy endpoints forces use of IMDSv2 which requires session tokens | `bool` | `true` | no |
 | <a name="input_atp_admin_password"></a> [atp\_admin\_password](#input\_atp\_admin\_password) | ATP admin password (min 12 chars, must include upper, lower, number) | `string` | `null` | no |
-| <a name="input_atp_db_name"></a> [atp\_db\_name](#input\_atp\_db\_name) | Autonomous Database name | `string` | `"habackenddb"` | no |
+| <a name="input_atp_db_name"></a> [atp\_db\_name](#input\_atp\_db_name) | Autonomous Database name | `string` | `"habackenddb"` | no |
 | <a name="input_backend_domain_name"></a> [backend\_domain\_name](#input\_backend\_domain\_name) | Domain name for the backend load balancer | `string` | n/a | yes |
 | <a name="input_cloud_init_config"></a> [cloud\_init\_config](#input\_cloud\_init\_config) | Cloud-init configuration for instances | `string` | `""` | no |
 | <a name="input_database_subnet_cidr"></a> [database\_subnet\_cidr](#input\_database\_subnet\_cidr) | Database subnet CIDR block | `string` | `"10.0.3.0/24"` | no |
@@ -638,6 +645,21 @@ This stack is designed to fit within the **OCI Always Free Tier**:
 - **Instance Capacity**: If A1.Flex instances are unavailable, try a different region.
 - **Terraform Locks**: Use `terraform force-unlock <lock_id>` if needed.
 - **Cloud-Init**: Check logs at `/var/log/cloud-init-output.log`.
+
+---
+
+## Testing
+
+This project uses [Terratest](https://terratest.gruntwork.io/) to validate the infrastructure deployment.
+Tests are located in the `test/` directory.
+
+To run the smoke tests (fast validation of networking and compute):
+```bash
+cd test
+go test -v -run TestSmokeNetworkAndCompute -timeout 20m
+```
+
+For more details on available tests, prerequisites, and full-stack staging tests, please refer to the [Test Documentation](test/README.md).
 
 ---
 
