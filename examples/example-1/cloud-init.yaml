@@ -75,3 +75,4 @@ runcmd:
   # Enable and start Nginx
   - systemctl enable --now nginx
   - systemctl restart nginx
+  - systemctl status nginx

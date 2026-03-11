@@ -36,6 +36,12 @@ output "frontend_load_balancer_public_ip" {
   value       = var.enable_frontend_lb ? module.frontend_load_balancer[0].lb_public_ip : null
 }
 
+# output "dns_zone_id" {
+#   description = "OCID of the DNS Zone"
+#   value       = module.frontend_dns_zone[0].zone_id
+# }
+
+
 # ==============================================================================
 # Compute Outputs
 # ==============================================================================

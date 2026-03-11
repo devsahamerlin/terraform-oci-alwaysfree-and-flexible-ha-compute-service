@@ -34,6 +34,7 @@ and this project adheres to Semantic Versioning.
 - Security Result Updated in Pull Request as comment
 - Version constraints added to all modules
 - Ready to use module structure
+- Documentation updated to explain paid tier scaling and `free_tier_mode` configuration
 
 ### Security
 

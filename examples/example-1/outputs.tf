@@ -37,6 +37,11 @@ output "backend_load_balancer_public_ip" {
   value       = module.oci_ha_stack.backend_load_balancer_public_ip
 }
 
+# output "dns_zone_id" {
+#   description = "OCID of the DNS Zone"
+#   value       = module.oci_ha_stack.dns_zone_id
+# }
+
 # ==============================================================================
 # Compute Outputs
 # ==============================================================================

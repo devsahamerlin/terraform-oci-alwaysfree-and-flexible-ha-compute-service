@@ -303,7 +303,7 @@ variable "are_legacy_imds_endpoints_disabled" {
 }
 
 variable "free_tier_mode" {
-  description = "Enable strict Always Free limits validation"
+  description = "Enable strict Always Free limits validation. Set to false to use paid shapes and resources beyond free tier limits."
   type        = bool
   default     = true
 }
