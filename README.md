@@ -18,6 +18,10 @@ This project delivers a **High Availability (HA)** architecture with **zero esti
 
 ---
 
+brew install terramaid
+
+terramaid run -w examples/example-1
+
 ## Table of Contents
 
 - [OCI Flexible and Always Free High Availability Infrastructure](#oci-flexible-and-always-free-high-availability-infrastructure)
@@ -627,7 +631,7 @@ ssh -i <your-private-key-path> -o ProxyCommand="ssh -i <your-private-key-path> -
 
 ### Cost Optimization
 This stack is designed to fit within the **OCI Always Free Tier**:
-- **Compute**: 4 OCPUs, 24GB RAM (ARM).
+- **Compute**: 2 OCPUs, 12GB RAM (ARM).
 - **Database**: 20GB Autonomous Database.
 - **Storage**: 200GB Block Volume, 20GB Object Storage.
 - **Networking**: 10TB outbound data transfer.
