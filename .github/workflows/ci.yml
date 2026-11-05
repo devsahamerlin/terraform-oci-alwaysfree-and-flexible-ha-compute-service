@@ -171,10 +171,21 @@ jobs:
           ${{ steps.iac.outputs.binary }} version
 
       - name: Write OCI private key
+        env:
+          OCI_PRIVATE_KEY_B64: ${{ secrets.OCI_PRIVATE_KEY_B64 }}
         run: |
-          mkdir -p ${{ github.workspace }}/.keys
-          echo "${{ secrets.OCI_PRIVATE_KEY_B64 }}" | base64 --decode > ${{ github.workspace }}/.keys/oci_api_key.pem
-          chmod 600 ${{ github.workspace }}/.keys/oci_api_key.pem
+          KEY="$GITHUB_WORKSPACE/.keys/oci_api_key.pem"
+          mkdir -p "$GITHUB_WORKSPACE/.keys"
+          printf '%s' "$OCI_PRIVATE_KEY_B64" | base64 --decode > "$KEY" \
+            || { echo "::error::OCI_PRIVATE_KEY_B64 is not valid base64"; exit 1; }
+          chmod 600 "$KEY"
+
+          # The OCI provider hides the real cause behind "did not find a proper configuration for private key": fail here with a clear message
+          if ! openssl pkey -in "$KEY" -noout -passin pass: 2>/dev/null; then
+            HEADER=$(grep -m1 -o '^-----BEGIN [A-Z ]*-----' "$KEY" || echo "no PEM header (double base64-encoded, or not the .pem file?)")
+            echo "::error::OCI_PRIVATE_KEY_B64 does not decode to an unencrypted private key. Found: $HEADER ($(wc -c < "$KEY") bytes)"
+            exit 1
+          fi
 
       - name: Write SSH public key
         run: |
