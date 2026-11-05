@@ -1,0 +1,20 @@
+# Files that run in CI (some with the OCI secrets) or weaken security checks: changes need the maintainer's review.
+# Enforced by the "Require review from Code Owners" rule on main.
+
+# CI workflows and this file
+/.github/                @devsahamerlin
+
+# Code executed by Terratest with the OCI credentials
+/test/                   @devsahamerlin
+/examples/               @devsahamerlin
+/modules/                @devsahamerlin
+*.tf                     @devsahamerlin
+
+# Code and config executed or trusted by CI
+/scripts/                @devsahamerlin
+/.pre-commit-config.yaml @devsahamerlin
+/.checkov.yaml           @devsahamerlin
+/.tflint.hcl             @devsahamerlin
+
+# Removing an entry here could let keys, .env or tfstate files be committed
+/.gitignore              @devsahamerlin
