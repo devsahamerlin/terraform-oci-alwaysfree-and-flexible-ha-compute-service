@@ -12,6 +12,8 @@
 
 Private VMs behind a load balancer, SSH through the OCI Bastion service only, plus optional Autonomous Database, Object Storage, block volumes, DNS and Container Registry. Built-in guardrails stop `terraform plan` before anything outside the Always Free tier gets created. Built and tested with Terraform; OpenTofu-compatible for teams that need it.
 
+![terraform-oci-infra.png](images/terraform-oci-infra.png)
+
 ## Quick start with Terraform
 
 ```hcl

@@ -42,7 +42,7 @@ Locally, tests are **skipped** (and `go test` still prints `PASS`) when the auth
 > GitHub Actions can mangle multi-line secrets such as PEM keys. Store them base64-encoded and decode them in the workflow (already done in `.github/workflows/ci.yml`).
 
 ```shell
-base64 -i ~/.oci/oci_api_key.pem | pbcopy   # paste as OCI_PRIVATE_KEY_B64
+base64 -i ~/.oci/oci-terraform-module.pem | pbcopy   # paste as OCI_PRIVATE_KEY_B64
 base64 -i ~/.ssh/id_rsa.pub | pbcopy        # paste as SSH_PUBLIC_KEY_B64
 ```
 

@@ -50,7 +50,12 @@ To maintain quality and consistency, please adhere to the following standards:
 - Verify that all examples under `examples/` work correctly with your changes.
 - Run the full pre-commit pipeline locally before pushing.
 - Ensure that the CI/CD pipeline passes after submitting your Pull Request.
-- Terratest deploys real OCI resources and only runs on `main` (or manually): it needs OCI credentials, which are not available to pull requests from forks. If you have an OCI tenancy, run the smoke test locally (see [test/README.md](test/README.md)) and paste the result in your PR.
+- Run the module tests (Terraform >= 1.7, no OCI account needed): they check the Always Free guardrails, the `enable_*` flags and the outputs against a mocked OCI provider, and run on every Pull Request, forks included. Add a `run` block in `tests/` when you change that logic.
+  ```bash
+  terraform init -backend=false
+  terraform test
+  ```
+- Terratest deploys real OCI resources with the maintainer's OCI credentials, so it never runs on pull requests: the maintainer runs it after reviewing your changes. If you have an OCI tenancy, run the smoke test locally (see [test/README.md](test/README.md)) and paste the result in your PR.
 - Changes that affect cost must keep `free_tier_mode = true` within the Always Free limits (see `validations.tf`).
 
 ## Commit Messages
