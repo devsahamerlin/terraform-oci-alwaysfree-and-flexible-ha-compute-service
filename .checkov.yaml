@@ -1,36 +1,39 @@
-# Defines security check exceptions with documented justifications
+# Security check exceptions, each with its justification.
+# Every skipped check is also documented in README.md ("Design decisions & trade-offs").
 
-# Checks to skip with justifications
 skip-check:
-  # Module versioning - Not applicable for local/private modules
+  # Module versioning
   - CKV_TF_1  # Ensure Terraform module sources use a commit hash
+  # Justification: all submodules are local paths (./modules/*), there is no remote source to pin.
+  # Consumers pin this module through its Terraform Registry version.
 
-  # Security list stateless/parser issues
+  # Security lists
   - CKV_OCI_17  # Ensure VCN inbound security lists are stateless
-    # Justification: Stateful rules provide automatic return traffic handling
-    # and are easier to manage. Stateless rules only needed for extreme
-  # performance requirements. Our architecture benefits from stateful rules.
+  # Justification: stateful rules handle return traffic automatically and are easier to maintain.
+  # Stateless rules only pay off for extreme throughput; enable_egress_security_rules_stateless exists for that case.
 
-  - CKV_OCI_19  # Ensure no security groups allow ingress from 0.0.0.0:0 to port 22
-    # Justification: Checkov parser fails on dynamic blocks. Architecture uses
-    # OCI Bastion Service with private RSA keys for secure access. VMs have no
-  # public IPs and are not internet-accessible. SSH is only via Bastion.
+  - CKV_OCI_19  # Ensure no security list allows ingress from 0.0.0.0/0 to port 22
+  # Justification: false positive, the Checkov parser cannot evaluate dynamic ingress blocks.
+  # The default public security list only opens 80/443; port 22 is only allowed from the VCN CIDR on the
+  # private subnet. VMs have no public IP and SSH goes through the OCI Bastion service, whose client
+  # allow list is allowed_ssh_cidrs (restrict it to your IP: curl ifconfig.me, then x.x.x.x/32).
 
-  - CKV_OCI_20  # Ensure no security groups allow ingress from 0.0.0.0:0 to port 3389
-    # Justification: Not applicable - Linux instances with no public IPs.
-  # RDP is Windows-only. Access via OCI Bastion Service, not direct SSH/RDP.
+  - CKV_OCI_20  # Ensure no security list allows ingress from 0.0.0.0/0 to port 3389
+  # Justification: false positive (dynamic blocks) and not applicable: Linux instances only, no RDP, no public IP.
 
-  # Customer Managed Keys - Oracle-managed encryption is sufficient
-  - CKV_OCI_9  # Object Storage CMK not required - Oracle-managed keys provide
-    # FIPS 140-2 compliant encryption. CMK adds operational overhead
-  # without proportional security benefit for our data classification.
+  # Customer Managed Keys - Oracle-managed encryption is used
+  - CKV_OCI_9  # Object Storage bucket encrypted with a Customer Managed Key
+  # Justification: Oracle-managed keys provide AES-256 encryption at rest. A CMK requires an OCI Vault
+  # (paid virtual private vault for HSM keys) and key rotation operations. Revisit for PCI/PHI/PII data.
 
-  - CKV_OCI_3  # Block Volume CMK not required - Default encryption meets our
-  # compliance baseline. Review if handling PCI/PHI/PII data.
+  - CKV_OCI_3  # Block Volume encrypted with a Customer Managed Key
+  # Justification: same as CKV_OCI_9, Oracle-managed encryption meets the baseline. Revisit for PCI/PHI/PII data.
 
+  # Backups
   - CKV_OCI_2  # Ensure OCI Block Storage Block Volume has backup enabled
-    # Justification: Backup is enabled via separate oci_core_volume_backup_policy_assignment resource.
-    # Checkov does not detect the association between the volume and the backup policy assignment.
+  # Justification: backups are configured through a separate oci_core_volume_backup_policy_assignment
+  # (enable_backups), which Checkov does not associate with the volume. They are off by default because
+  # daily backups exceed the 5 Always Free volume backups.
 
 # Framework configuration
 framework:

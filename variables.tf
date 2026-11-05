@@ -4,33 +4,19 @@ variable "tenancy_ocid" {
 }
 
 variable "frontend_domain_name" {
-  description = "Domain name for the frontend load balancer"
+  description = "Domain name for the frontend load balancer (required when enable_dns = true)"
   type        = string
+  default     = ""
 }
 
 variable "backend_domain_name" {
-  description = "Domain name for the backend load balancer"
+  description = "Domain name for the backend load balancer (required when enable_dns = true and enable_backend_lb = true)"
   type        = string
+  default     = ""
 }
 
-
-# variable "user_ocid" {
-#   description = "OCI User OCID"
-#   type        = string
-# }
-
-# variable "fingerprint" {
-#   description = "OCI API Key Fingerprint"
-#   type        = string
-# }
-
-# variable "private_key_path" {
-#   description = "Path to OCI API private key"
-#   type        = string
-# }
-
 variable "region" {
-  description = "OCI Region"
+  description = "OCI Region. Always Free resources must be created in your tenancy home region"
   type        = string
   default     = "eu-marseille-1"
 }
@@ -45,6 +31,12 @@ variable "project_name" {
   description = "Project name for resource naming"
   type        = string
   default     = "ha-backend"
+}
+
+variable "compartment_enable_delete" {
+  description = "Allow terraform destroy to delete the compartment. Keep false to protect it; set true for ephemeral environments (CI, tests)"
+  type        = bool
+  default     = false
 }
 
 variable "vcn_cidr" {
@@ -66,40 +58,61 @@ variable "private_subnet_cidr" {
 }
 
 variable "database_subnet_cidr" {
-  description = "Database subnet CIDR block"
+  description = "Database subnet CIDR block (only created when enable_database = true and free_tier_mode = false)"
   type        = string
   default     = "10.0.3.0/24"
 }
 
 variable "vm_count" {
-  description = "Number of VM instances"
+  description = "Number of VM instances (use at least 2 for high availability)"
   type        = number
+  default     = 2
 }
 
 variable "vm_shape" {
-  description = "VM shape (VM.Standard.E2.1.Micro or VM.Standard.A1.Flex)"
+  description = "VM shape. free_tier_mode only allows VM.Standard.A1.Flex; any shape is allowed when free_tier_mode = false"
   type        = string
-  default     = "VM.Standard.A1.Flex" # ARM-based for better free tier
+  default     = "VM.Standard.A1.Flex"
 }
 
 variable "vm_ocpus" {
-  description = "Number of OCPUs per VM (max 4 for A1 free tier total)"
+  description = "Number of OCPUs per VM (Always Free A1: 2 OCPUs total across all VMs)"
   type        = number
+  default     = 1
 }
 
 variable "vm_memory_gb" {
-  description = "Memory in GB per VM (max 24GB for A1 free tier total)"
+  description = "Memory in GB per VM (Always Free A1: 12 GB total across all VMs)"
   type        = number
+  default     = 6
 }
 
 variable "vm_boot_volume_size_gb" {
-  description = "Boot volume size in GB"
+  description = "Boot volume size in GB per VM (boot + block volumes share the 200 GB Always Free quota)"
   type        = number
+  default     = 50
 }
 
-variable "ssh_public_key_path" {
-  description = "Path to SSH public key for VM access"
+variable "ssh_public_key" {
+  description = "SSH public key content (not a path) used for VM access and Bastion sessions, e.g. file(\"~/.ssh/id_rsa.pub\")"
   type        = string
+
+  validation {
+    condition     = can(regex("^(ssh-(rsa|ed25519)|ecdsa-sha2-nistp(256|384|521)) ", trimspace(var.ssh_public_key)))
+    error_message = "ssh_public_key must be the content of an OpenSSH public key (ssh-rsa, ssh-ed25519 or ecdsa-sha2-*), not a file path. Use file(\"~/.ssh/id_rsa.pub\")."
+  }
+}
+
+variable "ssh_user" {
+  description = "OS user for SSH and Bastion sessions (ubuntu for Canonical Ubuntu images, opc for Oracle Linux)"
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "ubuntu_version" {
+  description = "Canonical Ubuntu version used to look up the latest image when the region is not in instance_image_ocid"
+  type        = string
+  default     = "24.04"
 }
 
 variable "atp_db_name" {
@@ -109,28 +122,16 @@ variable "atp_db_name" {
 }
 
 variable "atp_admin_password" {
-  description = "ATP admin password (min 12 chars, must include upper, lower, number)"
+  description = "ATP admin password, required when enable_database = true (12-30 chars, upper, lower and number)"
   type        = string
   sensitive   = true
   default     = null
 }
 
-# variable "enable_monitoring" {
-#   description = "Enable OCI Monitoring"
-#   type        = bool
-#   default     = true
-# }
-
-# variable "enable_logging" {
-#   description = "Enable OCI Logging"
-#   type        = bool
-#   default     = true
-# }
-
 variable "allowed_ssh_cidrs" {
-  description = "List of CIDR blocks allowed to SSH via Bastion"
+  description = "List of CIDR blocks allowed to connect to the Bastion service. Restrict to your public IP (curl ifconfig.me) as x.x.x.x/32"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Remove 0.0.0.0/0 and use "your-public-ip/32"
+  default     = ["0.0.0.0/0"]
 }
 
 variable "tags" {
@@ -148,7 +149,6 @@ variable "github_actions_public_key" {
   type        = string
 }
 
-
 variable "github_actions_email" {
   description = "Email for GitHub Actions user (optional, leave empty to skip GitHub Actions setup)"
   type        = string
@@ -156,7 +156,8 @@ variable "github_actions_email" {
 }
 
 variable "instance_image_ocid" {
-  type = map(string)
+  description = "Map of region => image OCID overrides. Regions not listed fall back to the latest Canonical Ubuntu image compatible with vm_shape"
+  type        = map(string)
   default = {
     us-phoenix-1           = "ocid1.image.oc1.phx.aaaaaaaa6hooptnlbfwr5lwemqjbu3uqidntrlhnt45yihfj222zahe7p3wq"
     us-ashburn-1           = "ocid1.image.oc1.iad.aaaaaaaa6tp7lhyrcokdtf7vrbmxyp2pctgg4uxvt4jz4vc47qoc2ec4anha"
@@ -169,20 +170,17 @@ variable "instance_image_ocid" {
 }
 
 variable "public_security_list_ingress_security_rules" {
-  description = "Public Security List of ingress security rules"
+  description = "Public Security List ingress rules (protocol: 6 = TCP, 17 = UDP, 1 = ICMP). SSH is not needed here: access goes through the OCI Bastion service"
   type = list(object({
-    protocol = string
-    port_min = number
-    port_max = number
-    source   = string
+    protocol  = string
+    source    = string
+    stateless = optional(bool, false)
+    port_min  = optional(number)
+    port_max  = optional(number)
+    icmp_type = optional(number)
+    icmp_code = optional(number)
   }))
   default = [
-    {
-      protocol = "6"
-      port_min = 22
-      port_max = 22
-      source   = "0.0.0.0/0"
-    },
     {
       protocol = "6"
       port_min = 80
@@ -199,11 +197,14 @@ variable "public_security_list_ingress_security_rules" {
 }
 
 variable "private_security_list_ingress_security_rules" {
-  description = "Private Security List of ingress security rules"
+  description = "Private Security List ingress rules, allowed from the VCN CIDR only (protocol: 6 = TCP, 17 = UDP, 1 = ICMP). Must include the load balancer backend ports (8080 frontend, 8000 backend)"
   type = list(object({
-    protocol = string
-    port_min = number
-    port_max = number
+    protocol  = string
+    stateless = optional(bool, false)
+    port_min  = optional(number)
+    port_max  = optional(number)
+    icmp_type = optional(number)
+    icmp_code = optional(number)
   }))
   default = [
     {
@@ -228,6 +229,16 @@ variable "private_security_list_ingress_security_rules" {
     },
     {
       protocol = "6"
+      port_min = 8000
+      port_max = 8000
+    },
+    {
+      protocol = "6"
+      port_min = 8080
+      port_max = 8080
+    },
+    {
+      protocol = "6"
       port_min = 8443
       port_max = 8443
     },
@@ -241,38 +252,39 @@ variable "enable_database" {
 }
 
 variable "enable_backend_lb" {
-  description = "Enable or disable the Backend Load Balancer"
+  description = "Enable or disable the private Backend Load Balancer (Always Free includes a single load balancer)"
   type        = bool
   default     = false
 }
-# variable "common_name" {
-#   description = "Common name for SSL certificate"
-#   type        = string
-#   default     = ""
-# }
 
 variable "enable_frontend_lb" {
-  description = "Enable or disable the Frontend Load Balancer"
+  description = "Enable or disable the public Frontend Load Balancer"
   type        = bool
   default     = true
 }
 
 variable "enable_dns" {
-  description = "Enable or disable DNS resources"
+  description = "Enable or disable OCI DNS zones and records (not part of Always Free; requires a domain delegated to OCI DNS)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_storage" {
-  description = "Enable or disable Storage resources"
+  description = "Enable or disable Storage resources (Object Storage bucket and one block volume attached per VM)"
   type        = bool
   default     = true
 }
 
+variable "block_volume_size_gb" {
+  description = "Size in GB of the block volume attached to each VM when enable_storage = true"
+  type        = number
+  default     = 50
+}
+
 variable "enable_backups" {
-  description = "Enable automated backups for block volumes"
+  description = "Enable daily block volume backups (7-day retention). Exceeds the 5 Always Free backups, so it is rejected when free_tier_mode = true"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "object_events_enabled" {
@@ -288,9 +300,9 @@ variable "enable_bastion" {
 }
 
 variable "enable_ocir" {
-  description = "Enable or disable OCI Container Registry"
+  description = "Enable or disable OCI Container Registry setup (creates tenancy-level IAM dynamic group and policies)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "cloud_init_config" {
@@ -318,13 +330,13 @@ variable "enable_egress_security_rules_stateless" {
 }
 
 variable "free_tier_mode" {
-  description = "Enable strict Always Free limits validation. Set to false to use paid shapes and resources beyond free tier limits."
+  description = "Enforce Always Free limits (A1 shape, 2 OCPUs, 12 GB RAM, 1 load balancer, 200 GB block storage, no scheduled backups). Set to false to use paid shapes and resources"
   type        = bool
   default     = true
 }
 
 variable "namespace" {
-  description = "Object Storage Namespace"
+  description = "Object Storage Namespace (optional, looked up automatically when empty)"
   type        = string
   default     = ""
 }

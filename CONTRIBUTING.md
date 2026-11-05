@@ -1,8 +1,8 @@
-# Contributing to OCI Flexible Stack Terraform Modules
+# Contributing to the Terraform OCI Always Free & Flexible HA Compute Stack (IaC)
 
 Thank you for considering contributing! 🎉
 
-This repository is a production-ready, Always Free optimized, flexible OCI Terraform module stack. We welcome contributions, bug reports, improvements, and suggestions.
+This repository is an Always Free optimized, flexible OCI Terraform module (Infrastructure as Code) published on the Terraform Registry. It is built and tested with Terraform and stays OpenTofu-compatible. We welcome contributions, bug reports, improvements, and suggestions.
 
 ## Table of Contents
 
@@ -19,8 +19,8 @@ This repository is a production-ready, Always Free optimized, flexible OCI Terra
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/devsahamerlin/terraform-oci-alwaysfree-production-ha-stack.git
-   cd terraform-oci-alwaysfree-production-ha-stack
+   git clone https://github.com/<your-username>/terraform-oci-alwaysfree-and-flexible-ha-compute-service.git
+   cd terraform-oci-alwaysfree-and-flexible-ha-compute-service
    ```
 3. **Create a new branch** for your feature or fix:
    ```bash
@@ -31,7 +31,7 @@ This repository is a production-ready, Always Free optimized, flexible OCI Terra
    ```bash
    pre-commit run --all-files
    ```
-6. **Test your changes** (terraform fmt, validate, tflint, checkov).
+6. **Test your changes** (terraform fmt, validate, tflint, checkov, terraform-docs). If you changed variables or outputs, regenerate the docs with `terraform-docs -c .terraform-docs.yml <dir>`.
 7. **Commit your changes**.
 8. **Push** to your fork and open a Pull Request.
 
@@ -50,6 +50,8 @@ To maintain quality and consistency, please adhere to the following standards:
 - Verify that all examples under `examples/` work correctly with your changes.
 - Run the full pre-commit pipeline locally before pushing.
 - Ensure that the CI/CD pipeline passes after submitting your Pull Request.
+- Terratest deploys real OCI resources and only runs on `main` (or manually): it needs OCI credentials, which are not available to pull requests from forks. If you have an OCI tenancy, run the smoke test locally (see [test/README.md](test/README.md)) and paste the result in your PR.
+- Changes that affect cost must keep `free_tier_mode = true` within the Always Free limits (see `validations.tf`).
 
 ## Commit Messages
 
@@ -78,9 +80,9 @@ feat: add optional free_tier_mode validation for compute instances
 
 If you discover a security vulnerability, please **do not** open a public issue.
 
-- Contact the repository owner privately.
+- Report it privately through GitHub: **Security** tab → **Report a vulnerability** (private vulnerability reporting).
 - We follow responsible disclosure best practices.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as this repository (MIT or Apache 2.0, depending on the `LICENSE` file).
+By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

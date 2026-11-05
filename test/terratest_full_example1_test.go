@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	http_helper "github.com/gruntwork-io/terratest/modules/http-helper"
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ type ociAuthVars struct {
 	SSHPublicKey   string
 }
 
-// loadAuthVars reads OCI auth env vars and skips the test if any are missing.
+// loadAuthVars reads OCI auth env vars and skips the test if any are missing (fails in CI).
 func loadAuthVars(t *testing.T) ociAuthVars {
 	t.Helper()
 	vars := ociAuthVars{
@@ -41,16 +42,34 @@ func loadAuthVars(t *testing.T) ociAuthVars {
 	}
 
 	missing := []string{}
-	if vars.TenancyOcid == "" { missing = append(missing, "TF_VAR_tenancy_ocid") }
-	if vars.UserOcid == "" { missing = append(missing, "TF_VAR_user_ocid") }
-	if vars.Fingerprint == "" { missing = append(missing, "TF_VAR_fingerprint") }
-	if vars.PrivateKeyPath == "" { missing = append(missing, "TF_VAR_private_key_path") }
-	if vars.Region == "" { missing = append(missing, "TF_VAR_region") }
-	if vars.Namespace == "" { missing = append(missing, "TF_VAR_namespace") }
-	if vars.SSHPublicKey == "" { missing = append(missing, "TF_VAR_ssh_public_key_path") }
+	if vars.TenancyOcid == "" {
+		missing = append(missing, "TF_VAR_tenancy_ocid")
+	}
+	if vars.UserOcid == "" {
+		missing = append(missing, "TF_VAR_user_ocid")
+	}
+	if vars.Fingerprint == "" {
+		missing = append(missing, "TF_VAR_fingerprint")
+	}
+	if vars.PrivateKeyPath == "" {
+		missing = append(missing, "TF_VAR_private_key_path")
+	}
+	if vars.Region == "" {
+		missing = append(missing, "TF_VAR_region")
+	}
+	if vars.Namespace == "" {
+		missing = append(missing, "TF_VAR_namespace")
+	}
+	if vars.SSHPublicKey == "" {
+		missing = append(missing, "TF_VAR_ssh_public_key_path")
+	}
 
 	if len(missing) > 0 {
-		t.Skipf("Skipping test: missing required env vars: %s", strings.Join(missing, ", "))
+		// In CI a skip would turn a misconfigured pipeline green without testing anything
+		if os.Getenv("CI") == "true" {
+			t.Fatalf("Missing required env vars in CI: %s", strings.Join(missing, ", "))
+		}
+		t.Skipf("Skipping test: missing required env vars: %s (export them, e.g. set -a; source .env; set +a)", strings.Join(missing, ", "))
 	}
 	return vars
 }
@@ -71,11 +90,12 @@ func optionalEnv(key, fallback string) string {
 	return fallback
 }
 
+// getTerraformBinary returns the IaC binary: Terraform by default, OpenTofu with TF_BINARY=tofu.
 func getTerraformBinary() string {
-	if bin := os.Getenv("TF_BINARY"); bin == "terraform" {
-		return "terraform"
+	if bin := os.Getenv("TF_BINARY"); bin == "tofu" {
+		return "tofu"
 	}
-	return "tofu"
+	return "terraform"
 }
 
 // ─────────────────────────────────────────────
@@ -90,21 +110,22 @@ func TestSmokeNetworkAndCompute(t *testing.T) {
 	auth := loadAuthVars(t)
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/example-1",
+		TerraformDir:    "../examples/example-1",
 		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
 			// Auth
-			"tenancy_ocid":     auth.TenancyOcid,
-			"user_ocid":        auth.UserOcid,
-			"fingerprint":      auth.Fingerprint,
-			"private_key_path": auth.PrivateKeyPath,
-			"region":           auth.Region,
-			"namespace":        auth.Namespace,
+			"tenancy_ocid":        auth.TenancyOcid,
+			"user_ocid":           auth.UserOcid,
+			"fingerprint":         auth.Fingerprint,
+			"private_key_path":    auth.PrivateKeyPath,
+			"region":              auth.Region,
+			"namespace":           auth.Namespace,
 			"ssh_public_key_path": auth.SSHPublicKey,
 
 			// Project identity
-			"environment":  "ci-smoke",
-			"project_name": fmt.Sprintf("ha-backend-smoke-%d", time.Now().Unix()),
+			"environment":               "ci-smoke",
+			"compartment_enable_delete": true,
+			"project_name":              fmt.Sprintf("ha-backend-smoke-%d", time.Now().Unix()),
 
 			// Network — use defaults from vars file
 			"vcn_cidr":             "10.0.0.0/16",
@@ -182,21 +203,22 @@ func TestStagingFullStack(t *testing.T) {
 	githubPubKey := optionalEnv("TF_VAR_github_actions_public_key", "")
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/example-1",
+		TerraformDir:    "../examples/example-1",
 		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
 			// Auth
-			"tenancy_ocid":     auth.TenancyOcid,
-			"user_ocid":        auth.UserOcid,
-			"fingerprint":      auth.Fingerprint,
-			"private_key_path": auth.PrivateKeyPath,
-			"region":           auth.Region,
-			"namespace":        auth.Namespace,
+			"tenancy_ocid":        auth.TenancyOcid,
+			"user_ocid":           auth.UserOcid,
+			"fingerprint":         auth.Fingerprint,
+			"private_key_path":    auth.PrivateKeyPath,
+			"region":              auth.Region,
+			"namespace":           auth.Namespace,
 			"ssh_public_key_path": auth.SSHPublicKey,
 
 			// Project identity
-			"environment":  "staging",
-			"project_name": fmt.Sprintf("ha-backend-staging-%d", time.Now().Unix()),
+			"environment":               "staging",
+			"compartment_enable_delete": true,
+			"project_name":              fmt.Sprintf("ha-backend-staging-%d", time.Now().Unix()),
 
 			// Domains
 			"backend_domain_name":  backendDomain,
@@ -208,11 +230,11 @@ func TestStagingFullStack(t *testing.T) {
 			"private_subnet_cidr":  "10.0.2.0/24",
 			"database_subnet_cidr": "10.0.3.0/24",
 
-			// Compute — 2 VMs, prod-equivalent shape
+			// Compute — 2 VMs sharing the Always Free A1 quota (2 OCPUs / 12 GB total)
 			"vm_count":               2,
 			"vm_shape":               "VM.Standard.A1.Flex",
-			"vm_ocpus":               2,
-			"vm_memory_gb":           12,
+			"vm_ocpus":               1,
+			"vm_memory_gb":           6,
 			"vm_boot_volume_size_gb": 50,
 
 			// Database
@@ -245,9 +267,9 @@ func TestStagingFullStack(t *testing.T) {
 		},
 		// Extend default timeout — LB + ATP provisioning can take 10–15 min on OCI
 		RetryableTerraformErrors: map[string]string{
-			".*timeout.*":                   "OCI provisioning timeout, retrying",
-			".*Service limit exceeded.*":    "Quota transient error, retrying",
-			".*TooManyRequests.*":           "OCI API rate limit, retrying",
+			".*timeout.*":                "OCI provisioning timeout, retrying",
+			".*Service limit exceeded.*": "Quota transient error, retrying",
+			".*TooManyRequests.*":        "OCI API rate limit, retrying",
 		},
 		MaxRetries:         3,
 		TimeBetweenRetries: 30 * time.Second,
@@ -266,7 +288,8 @@ func TestStagingFullStack(t *testing.T) {
 	dbSubnetId := terraform.Output(t, terraformOptions, "database_subnet_id")
 	assert.NotEmpty(t, publicSubnetId, "Public subnet should exist")
 	assert.NotEmpty(t, privateSubnetId, "Private subnet should exist")
-	assert.NotEmpty(t, dbSubnetId, "Database subnet should exist when enable_database=true")
+	// Always Free ATP has no private endpoint: the database subnet is only created when free_tier_mode=false
+	assert.Empty(t, dbSubnetId, "Database subnet should not be created in free_tier_mode")
 
 	// ── Compute ──
 	instanceIds := terraform.OutputList(t, terraformOptions, "instance_ids")
@@ -277,7 +300,19 @@ func TestStagingFullStack(t *testing.T) {
 
 	// ── Load Balancer ──
 	lbIp := terraform.Output(t, terraformOptions, "frontend_load_balancer_public_ip")
-	assert.NotEmpty(t, lbIp, "Frontend LB public IP should be set when enable_frontend_lb=true")
+	require.NotEmpty(t, lbIp, "Frontend LB public IP should be set when enable_frontend_lb=true")
+
+	// The LB must actually serve traffic: listener + healthy backends (validate alone does not prove it)
+	http_helper.HttpGetWithRetryWithCustomValidation(
+		t,
+		fmt.Sprintf("http://%s/", lbIp),
+		nil,
+		40,             // max attempts
+		15*time.Second, // sleep between attempts
+		func(status int, body string) bool {
+			return status == 200 && strings.Contains(body, "OCI High Availability Stack")
+		},
+	)
 
 	// ── Bastion ──
 	bastionId := terraform.Output(t, terraformOptions, "bastion_id")
@@ -327,8 +362,9 @@ func TestStagingFullStack(t *testing.T) {
 	assert.NotEmpty(t, connStrings, "ATP connection strings should not be empty")
 
 	// ── Backup policy ──
+	// Scheduled backups exceed the 5 Always Free volume backups, so they are disabled in free_tier_mode
 	backupPolicyId := terraform.Output(t, terraformOptions, "backup_policy_id")
-	assert.NotEmpty(t, backupPolicyId, "Backup policy should be assigned")
+	assert.Empty(t, backupPolicyId, "Backup policy should not be created in free_tier_mode")
 }
 
 // ─────────────────────────────────────────────
@@ -342,23 +378,24 @@ func TestIdempotency(t *testing.T) {
 	auth := loadAuthVars(t)
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../examples/example-1",
+		TerraformDir:    "../examples/example-1",
 		TerraformBinary: getTerraformBinary(),
 		Vars: map[string]interface{}{
-			"tenancy_ocid":     auth.TenancyOcid,
-			"user_ocid":        auth.UserOcid,
-			"fingerprint":      auth.Fingerprint,
-			"private_key_path": auth.PrivateKeyPath,
-			"region":           auth.Region,
-			"namespace":        auth.Namespace,
+			"tenancy_ocid":        auth.TenancyOcid,
+			"user_ocid":           auth.UserOcid,
+			"fingerprint":         auth.Fingerprint,
+			"private_key_path":    auth.PrivateKeyPath,
+			"region":              auth.Region,
+			"namespace":           auth.Namespace,
 			"ssh_public_key_path": auth.SSHPublicKey,
 
-			"environment":  "ci-idempotency",
-			"project_name": fmt.Sprintf("ha-idempotency-%d", time.Now().Unix()),
+			"environment":               "ci-idempotency",
+			"compartment_enable_delete": true,
+			"project_name":              fmt.Sprintf("ha-idempotency-%d", time.Now().Unix()),
 
-			"vm_count":      1,
-			"vm_ocpus":      1,
-			"vm_memory_gb":  6,
+			"vm_count":     1,
+			"vm_ocpus":     1,
+			"vm_memory_gb": 6,
 
 			"enable_database":    false,
 			"enable_frontend_lb": false,
@@ -369,7 +406,7 @@ func TestIdempotency(t *testing.T) {
 			"enable_ocir":        false,
 
 			"tags": map[string]string{
-				"ManagedBy": "Terratest",
+				"ManagedBy":  "Terratest",
 				"CostCenter": "AlwaysFree",
 			},
 		},

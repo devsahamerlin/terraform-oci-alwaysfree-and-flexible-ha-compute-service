@@ -26,21 +26,15 @@ output "database_subnet_id" {
   value       = module.network.database_subnet_id
 }
 
-output "backend_load_balancer_public_ip" {
-  description = "Public IP of the Backend Load Balancer"
+output "backend_load_balancer_ip" {
+  description = "Private IP of the Backend Load Balancer (reachable from inside the VCN only)"
   value       = var.enable_backend_lb ? module.backend_load_balancer[0].lb_public_ip : null
 }
 
 output "frontend_load_balancer_public_ip" {
-  description = "Public IP of the Frontent Load Balancer"
+  description = "Public IP of the Frontend Load Balancer"
   value       = var.enable_frontend_lb ? module.frontend_load_balancer[0].lb_public_ip : null
 }
-
-# output "dns_zone_id" {
-#   description = "OCID of the DNS Zone"
-#   value       = module.frontend_dns_zone[0].zone_id
-# }
-
 
 # ==============================================================================
 # Compute Outputs
@@ -102,7 +96,7 @@ output "block_volume_ids" {
 
 
 output "backup_policy_id" {
-  description = "OCID of the assigned backup policy"
+  description = "OCID of the block volume backup policy (null when enable_backups = false)"
   value       = var.enable_storage ? try(module.storage[0].backup_policy_id, null) : null
 }
 
@@ -123,7 +117,7 @@ output "bastion_connection_metadata" {
       session_id         = module.bastion_sessions[i].bastion_session_id
       instance_id        = module.compute.instance_ids[i]
       private_ip         = module.compute.instance_private_ips[i]
-      connection_command = "ssh -i <your-private-key-path> -o ProxyCommand=\"ssh -i <your-private-key-path> -W ${module.compute.instance_private_ips[i]}:22 ${module.bastion_sessions[i].bastion_session_id}@host.bastion.${var.region}.oci.oraclecloud.com\" -p 22 ubuntu@${module.compute.instance_private_ips[i]}"
+      connection_command = "ssh -i <your-private-key-path> -o ProxyCommand=\"ssh -i <your-private-key-path> -W ${module.compute.instance_private_ips[i]}:22 -p 22 ${module.bastion_sessions[i].bastion_session_id}@host.bastion.${var.region}.oci.oraclecloud.com\" -p 22 ${var.ssh_user}@${module.compute.instance_private_ips[i]}"
     }
   } : null
 }
@@ -131,6 +125,11 @@ output "bastion_connection_metadata" {
 # ==============================================================================
 # OCIR (Container Registry) Outputs
 # ==============================================================================
+
+output "ocir_url" {
+  description = "OCIR registry endpoint (docker login host)"
+  value       = var.enable_ocir ? try(module.ocir[0].ocir_url, null) : null
+}
 
 output "ocir_repository_url" {
   description = "URL of the OCIR Repository"

@@ -2,7 +2,6 @@ name: Terraform CI/CD
 
 env:
   EXAMPLE_DIR: examples/example-1
-  TF_BINARY: tofu # or terraform
 
 on:
   push:
@@ -14,6 +13,11 @@ on:
     paths:
       - "**.tf"
       - "**.tfvars"
+      - "**.go"
+      - ".checkov.yaml"
+      - ".tflint.hcl"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 jobs:
   terraform-validate-and-security-scan:
@@ -25,7 +29,6 @@ jobs:
       pull-requests: write     # Write PR comments
       security-events: write   # Upload security scan results (SARIF)
       actions: read            # Read workflow run information (required for SARIF)
-      id-token: write          # OIDC token for authentication
 
     steps:
       - name: Checkout repository
@@ -46,8 +49,8 @@ jobs:
         uses: terraform-linters/setup-tflint@v4
 
       # Validate root module
-      - name: Terraform Format Check (root)
-        run: terraform fmt -recursive
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Init (root)
         run: terraform init -backend=false
@@ -64,10 +67,12 @@ jobs:
         working-directory: ${{ env.EXAMPLE_DIR }}
         run: terraform validate
 
-      # ── Pre-commit
+      # ── Pre-commit (terraform-docs is checked locally, the binary is not installed in CI)
       - name: Run pre-commit
         id: precommit
         continue-on-error: true
+        env:
+          SKIP: terraform_docs
         run: |
           pip install pre-commit --quiet
           pre-commit run --all-files 2>&1 | tee /tmp/precommit-output.txt
@@ -93,19 +98,18 @@ jobs:
           tflint --recursive --format compact 2>&1 | tee /tmp/tflint-output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
-      #      # Upload security scan results to GitHub Code Scanning (to uncomment when repository will be public)
-      #      - name: Upload SARIF file
-      #        # Only upload if Checkov ran (success or failure)
-      #        if: success()
-      #        uses: github/codeql-action/upload-sarif@v4
-      #        with:
-      #          sarif_file: results.sarif
-      #          category: checkov-terraform
-      #        continue-on-error: true  # Don't fail workflow if upload fails
+      # Upload security scan results to GitHub Code Scanning
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+          category: checkov-terraform
+        continue-on-error: true  # Don't fail the workflow if the upload fails
 
-
+      # PRs from forks get a read-only token: only comment on PRs from this repository
       - name: Comment Checkov Results
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -121,32 +125,32 @@ jobs:
               body: output
             });
 
+  # Deploys real (Always Free) resources: runs on main and on demand only, never on fork PRs (no secrets there)
   terratest-smoke:
     needs: terraform-validate-and-security-scan
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    concurrency:
+      group: terratest-oci
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
+      # Terraform by default; set the repository variable TF_BINARY=tofu to run the same tests with OpenTofu
       - name: Resolve IaC binary
         id: iac
         run: |
-          FORCED="${{ vars.TF_BINARY }}"   # variable de repo (pas secret), ex: "terraform"
+          FORCED="${{ vars.TF_BINARY }}"   # repository variable (not a secret): "terraform" (default) or "tofu"
 
-          if [ "$FORCED" = "terraform" ]; then
-            echo "binary=terraform" >> $GITHUB_OUTPUT
-            echo "tool=terraform"   >> $GITHUB_OUTPUT
-          else
+          if [ "$FORCED" = "tofu" ]; then
             echo "binary=tofu"    >> $GITHUB_OUTPUT
             echo "tool=opentofu"  >> $GITHUB_OUTPUT
+          else
+            echo "binary=terraform" >> $GITHUB_OUTPUT
+            echo "tool=terraform"   >> $GITHUB_OUTPUT
           fi
 
           echo "Resolved IaC tool: $(cat $GITHUB_OUTPUT | grep binary)"
-
-      - name: Install OpenTofu
-        if: steps.iac.outputs.binary == 'tofu'
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: "1.11.2"
 
       - name: Install Terraform
         if: steps.iac.outputs.binary == 'terraform'
@@ -155,11 +159,16 @@ jobs:
           terraform_version: "1.14.6"
           terraform_wrapper: false
 
+      - name: Install OpenTofu (optional)
+        if: steps.iac.outputs.binary == 'tofu'
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.11.2"
+
       - name: Verify binary
         run: |
           echo "Using: ${{ steps.iac.outputs.tool }}"
           ${{ steps.iac.outputs.binary }} version
-
 
       - name: Write OCI private key
         run: |
@@ -185,7 +194,7 @@ jobs:
           go test -v -run TestSmokeNetworkAndCompute -timeout 20m
         env:
           TF_BINARY: ${{ steps.iac.outputs.binary }}
-          # Auth scalaires — stockés directs en secret
+          # Scalar auth values, stored directly as secrets
           TF_VAR_tenancy_ocid:  ${{ secrets.TF_VAR_TENANCY_OCID }}
           TF_VAR_user_ocid:     ${{ secrets.TF_VAR_USER_OCID }}
           TF_VAR_fingerprint:   ${{ secrets.TF_VAR_FINGERPRINT }}
@@ -196,13 +205,11 @@ jobs:
           TF_VAR_backend_domain_name: ${{ secrets.TF_VAR_backend_domain_name }}
           TF_VAR_frontend_domain_name: ${{ secrets.TF_VAR_frontend_domain_name }}
 
-          # Chemins — construits dynamiquement à partir des fichiers écrits ci-dessus
+          # Paths, built from the files written above
           TF_VAR_private_key_path:    ${{ github.workspace }}/.keys/oci_api_key.pem
           TF_VAR_ssh_public_key_path: ${{ github.workspace }}/.keys/id_rsa_ci.pub
 
-      # ── Cleanup obligatoire ──────────────────────────────────────────────────
+      # ── Mandatory cleanup ────────────────────────────────────────────────────
       - name: Cleanup key files
-        if: always()   # s'exécute même si le test échoue
-        run: |
-          rm -f ~/.oci/oci_api_key.pem
-          rm -f ~/.ssh/id_rsa_ci.pub
+        if: always()   # runs even when the test fails
+        run: rm -rf ${{ github.workspace }}/.keys

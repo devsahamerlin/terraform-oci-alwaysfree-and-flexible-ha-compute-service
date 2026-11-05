@@ -1,4 +1,4 @@
-module github.com/devsahamerlin/terraform-oci-alwaysfree-production-ha-stack/test
+module github.com/devsahamerlin/terraform-oci-alwaysfree-and-flexible-ha-compute-service/test
 
 go 1.21
 

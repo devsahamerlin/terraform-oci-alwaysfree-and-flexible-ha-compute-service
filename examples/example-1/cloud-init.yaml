@@ -25,12 +25,9 @@ write_files:
           <div class="container">
               <h1>OCI High Availability Stack</h1>
               <p>This request was served by:</p>
-              <h2>Instance: <span id="hostname">Loading</span></h2>
-              <h3>Private IP: <span id="ip">Loading</span></h3>
+              <h2>Instance: <span id="hostname">__INSTANCE_NAME__</span></h2>
+              <h3>Private IP: <span id="ip">__PRIVATE_IP__</span></h3>
           </div>
-          <script>
-              document.getElementById("hostname").innerText = window.location.hostname;
-          </script>
       </body>
       </html>
   - path: /etc/nginx/conf.d/custom.conf
@@ -63,8 +60,8 @@ runcmd:
   - |
     INSTANCE_NAME=$(curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/displayName)
     PRIVATE_IP=$(curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].privateIp')
-    sed -i "s/Loading/$INSTANCE_NAME/g" /var/www/html/index.html
-    sed -i "s/Loading/$PRIVATE_IP/g" /var/www/html/index.html
+    sed -i "s/__INSTANCE_NAME__/$INSTANCE_NAME/g" /var/www/html/index.html
+    sed -i "s/__PRIVATE_IP__/$PRIVATE_IP/g" /var/www/html/index.html
 
   # Open firewall ports
   - iptables -I INPUT -p tcp --dport 80 -j ACCEPT

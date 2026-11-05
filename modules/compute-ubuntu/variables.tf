@@ -58,7 +58,7 @@ variable "bastion" {
   type        = string
 }
 
-variable "os_manegement_service_agent" {
+variable "os_management_service_agent" {
   description = "State of the OS Management Service Agent plugin (ENABLED/DISABLED)"
   type        = string
 }

@@ -14,6 +14,11 @@ output "block_volume_ids" {
 }
 
 output "backup_policy_id" {
-  description = "OCID of the assigned backup policy"
-  value       = oci_core_volume_backup_policy_assignment.volume_backup_policy_assignment[*].id
+  description = "OCID of the block volume backup policy (null when backups are disabled)"
+  value       = try(oci_core_volume_backup_policy.block_volume_backup[0].id, null)
+}
+
+output "volume_attachment_ids" {
+  description = "OCIDs of the block volume attachments"
+  value       = oci_core_volume_attachment.block_volume_attachment[*].id
 }

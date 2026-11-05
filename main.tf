@@ -1,21 +1,22 @@
 module "compartment" {
   source        = "./modules/compartment"
-  description   = "${var.project_name} IaC team"
-  name          = var.project_name
+  description   = "${var.project_name} ${var.environment} IaC team"
+  name          = "${var.project_name}-${var.environment}"
   tenancy_ocid  = var.tenancy_ocid
-  enable_delete = false
+  enable_delete = var.compartment_enable_delete
 }
 
 # Network Module
 module "network" {
   source = "./modules/network"
 
-  compartment_id                               = module.compartment.compartment_id
-  vcn_cidr                                     = var.vcn_cidr
-  public_subnet_cidr                           = var.public_subnet_cidr
-  private_subnet_cidr                          = var.private_subnet_cidr
-  database_subnet_cidr                         = var.database_subnet_cidr
-  enable_database                              = var.enable_database
+  compartment_id       = module.compartment.compartment_id
+  vcn_cidr             = var.vcn_cidr
+  public_subnet_cidr   = var.public_subnet_cidr
+  private_subnet_cidr  = var.private_subnet_cidr
+  database_subnet_cidr = var.database_subnet_cidr
+  # Always Free ATP does not support private endpoints, so the database subnet is only useful in paid mode
+  enable_database                              = var.enable_database && !var.free_tier_mode
   project_name                                 = var.project_name
   environment                                  = var.environment
   tags                                         = local.common_tags
@@ -24,27 +25,44 @@ module "network" {
   enable_egress_security_rules_stateless       = var.enable_egress_security_rules_stateless
 }
 
+# Latest Canonical Ubuntu image for the shape, used when the region is not in var.instance_image_ocid
+data "oci_core_images" "ubuntu" {
+  count                    = contains(keys(var.instance_image_ocid), var.region) ? 0 : 1
+  compartment_id           = var.tenancy_ocid
+  operating_system         = "Canonical Ubuntu"
+  operating_system_version = var.ubuntu_version
+  shape                    = var.vm_shape
+  sort_by                  = "TIMECREATED"
+  sort_order               = "DESC"
+
+  # Exclude Minimal images
+  filter {
+    name   = "display_name"
+    values = ["^Canonical-Ubuntu-${replace(var.ubuntu_version, ".", "\\.")}-(aarch64-)?[0-9]{4}\\."]
+    regex  = true
+  }
+}
+
 # Compute Module
 module "compute" {
   source = "./modules/compute-ubuntu"
 
-  compartment_id = module.compartment.compartment_id
-  subnet_id      = module.network.private_subnet_id
-  //public_subnet_id        = module.network.public_subnet_id
+  compartment_id                      = module.compartment.compartment_id
+  subnet_id                           = module.network.private_subnet_id
   vm_count                            = var.vm_count
   vm_shape                            = var.vm_shape
   vm_ocpus                            = var.vm_ocpus
   vm_memory_gb                        = var.vm_memory_gb
   vm_boot_volume_size_gb              = var.vm_boot_volume_size_gb
-  ssh_public_key                      = var.ssh_public_key_path
+  ssh_public_key                      = var.ssh_public_key
   project_name                        = var.project_name
   environment                         = var.environment
   tags                                = local.common_tags
   cloud_init_config                   = var.cloud_init_config
-  depends_on                          = [module.network]
+  depends_on                          = [module.network, null_resource.free_tier_guard, null_resource.input_guard]
   bastion                             = var.enable_bastion ? "ENABLED" : "DISABLED"
-  os_manegement_service_agent         = "ENABLED"
-  instance_image_ocid                 = var.instance_image_ocid[var.region]
+  os_management_service_agent         = "ENABLED"
+  instance_image_ocid                 = local.instance_image_id
   is_pv_encryption_in_transit_enabled = var.is_pv_encryption_in_transit_enabled
   are_legacy_imds_endpoints_disabled  = var.are_legacy_imds_endpoints_disabled
 }
@@ -93,8 +111,8 @@ module "backend_load_balancer" {
 
   is_ssl_enabled          = true
   certificate_name        = "${var.project_name}-backend-cert"
-  certificate_private_key = tls_private_key.backend_lb_private_key.private_key_pem
-  certificate_public_cert = tls_self_signed_cert.backend_lb_cert.cert_pem
+  certificate_private_key = tls_private_key.backend_lb_private_key[0].private_key_pem
+  certificate_public_cert = tls_self_signed_cert.backend_lb_cert[0].cert_pem
   lb_listener_port        = 443
 }
 
@@ -146,9 +164,9 @@ module "database" {
   project_name   = var.project_name
   environment    = var.environment
   tags           = local.common_tags
-  nsg_ids        = [] # TO for Next Release module.network.database_nsg_id
+  nsg_ids        = [] # Roadmap: module.network.database_nsg_id
   depends_on     = [module.network]
-  is_free_tier   = var.free_tier_mode && var.enable_database ? true : false
+  is_free_tier   = var.free_tier_mode
 }
 
 # Storage Module
@@ -161,6 +179,8 @@ module "storage" {
   environment           = var.environment
   tags                  = local.common_tags
   vm_count              = var.vm_count
+  instance_ids          = module.compute.instance_ids
+  block_volume_size_gb  = var.block_volume_size_gb
   enable_backups        = var.enable_backups
   object_events_enabled = var.object_events_enabled
   namespace             = var.namespace
@@ -186,7 +206,7 @@ module "ocir" {
   source = "./modules/oci-container-registry"
   count  = var.enable_ocir ? 1 : 0
 
-  compartment_id = var.tenancy_ocid
+  compartment_id = module.compartment.compartment_id
   tenancy_ocid   = var.tenancy_ocid
   project_name   = var.project_name
   environment    = var.environment
@@ -201,32 +221,25 @@ module "ocir" {
   region_key          = var.region
 }
 
-resource "time_sleep" "wait_for_instance" {
-  count = var.vm_count
+# The Bastion plugin of the Oracle Cloud Agent needs time to start before sessions can be created
+resource "time_sleep" "wait_for_bastion_plugin" {
+  count = var.enable_bastion ? 1 : 0
 
   depends_on = [module.compute]
 
-  create_duration = "10m" # Wait for Oracle Cloud Agent to initialize
+  create_duration = "10m"
 }
 
 module "bastion_sessions" {
-  depends_on                                 = [time_sleep.wait_for_instance]
+  depends_on                                 = [time_sleep.wait_for_bastion_plugin]
   source                                     = "./modules/bastion-session"
   count                                      = var.enable_bastion ? var.vm_count : 0
   bastion_id                                 = module.bastion[0].bastion_id
   environment                                = var.environment
   project_name                               = var.project_name
-  ssh_public_key                             = var.ssh_public_key_path
+  ssh_public_key                             = var.ssh_public_key
   target_resource_id                         = module.compute.instance_ids[count.index]
-  target_resource_operating_system_user_name = "opc"
+  target_resource_operating_system_user_name = var.ssh_user
   target_resource_private_ip_address         = module.compute.instance_private_ips[count.index]
   vm_name                                    = "vm${count.index + 1}"
-}
-
-resource "time_sleep" "wait_for_instance_configuration" {
-  count = var.vm_count
-
-  depends_on = [module.bastion_sessions]
-
-  create_duration = "2m"
 }

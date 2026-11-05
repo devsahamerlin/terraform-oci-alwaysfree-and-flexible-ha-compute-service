@@ -29,6 +29,17 @@ variable "vm_count" {
   type        = number
 }
 
+variable "instance_ids" {
+  description = "OCIDs of the VM instances to attach the block volumes to (one volume per VM, same order as vm_count)"
+  type        = list(string)
+}
+
+variable "block_volume_size_gb" {
+  description = "Size in GB of each block volume"
+  type        = number
+  default     = 50
+}
+
 variable "object_events_enabled" {
   description = "Enables audit logging and compliance tracking, Allows automation based on object operations, required for security monitoring and alerting"
   default     = true

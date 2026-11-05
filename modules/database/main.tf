@@ -6,7 +6,7 @@ resource "oci_database_autonomous_database" "atp" {
   db_version              = "19c"
   db_workload             = "OLTP"
   is_auto_scaling_enabled = false
-  is_free_tier            = true
+  is_free_tier            = var.is_free_tier
   license_model           = "LICENSE_INCLUDED"
 
   # Always Free tier specs

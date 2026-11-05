@@ -32,15 +32,10 @@ output "frontend_load_balancer_public_ip" {
   value       = module.oci_ha_stack.frontend_load_balancer_public_ip
 }
 
-output "backend_load_balancer_public_ip" {
-  description = "Public IP of the Backend Load Balancer"
-  value       = module.oci_ha_stack.backend_load_balancer_public_ip
+output "backend_load_balancer_ip" {
+  description = "Private IP of the Backend Load Balancer"
+  value       = module.oci_ha_stack.backend_load_balancer_ip
 }
-
-# output "dns_zone_id" {
-#   description = "OCID of the DNS Zone"
-#   value       = module.oci_ha_stack.dns_zone_id
-# }
 
 # ==============================================================================
 # Compute Outputs
@@ -104,7 +99,6 @@ output "backup_policy_id" {
   description = "OCID of the assigned backup policy"
   value       = module.oci_ha_stack.backup_policy_id
 }
-#
 
 # ==============================================================================
 # Bastion Outputs
@@ -120,11 +114,14 @@ output "bastion_connection_metadata" {
   value       = module.oci_ha_stack.bastion_connection_metadata
 }
 
-
-
 # ==============================================================================
 # OCIR (Container Registry) Outputs
 # ==============================================================================
+
+output "ocir_url" {
+  description = "OCIR registry endpoint (docker login host)"
+  value       = module.oci_ha_stack.ocir_url
+}
 
 output "ocir_repository_url" {
   description = "URL of the OCIR Repository"

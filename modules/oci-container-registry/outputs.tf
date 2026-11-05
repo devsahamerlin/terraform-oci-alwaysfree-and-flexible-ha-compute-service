@@ -4,21 +4,13 @@ output "ocir_namespace" {
 }
 
 output "ocir_url" {
-  description = "OCIR registry URL"
-  value       = data.oci_core_services.all_oci_services.services[0].cidr_block
+  description = "OCIR registry endpoint (docker login host)"
+  value       = "${var.region_key}.ocir.io"
 }
 
 output "dynamic_group_id" {
   description = "Dynamic group OCID for VM instances"
   value       = oci_identity_dynamic_group.vm_dynamic_group.id
-}
-
-data "oci_core_services" "all_oci_services" {
-  filter {
-    name   = "name"
-    values = ["All .* Services In Oracle Services Network"]
-    regex  = true
-  }
 }
 
 # Output the repository details
@@ -39,7 +31,7 @@ output "github_actions_user_ocid" {
 
 output "github_actions_username" {
   description = "Username for GitHub Actions (use with auth token for OCIR login)"
-  value       = "${data.oci_objectstorage_namespace.tenancy_namespace.namespace}/${var.user_email != "" ? oci_identity_user.github_actions_user[0].name : ""}"
+  value       = var.user_email != "" ? "${data.oci_objectstorage_namespace.tenancy_namespace.namespace}/${oci_identity_user.github_actions_user[0].name}" : ""
 }
 
 output "github_actions_auth_token" {
@@ -47,7 +39,3 @@ output "github_actions_auth_token" {
   value       = var.user_email != "" ? oci_identity_auth_token.github_actions_token[0].token : ""
   sensitive   = true
 }
-
-
-
-

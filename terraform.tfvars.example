@@ -1,15 +1,13 @@
-# Copy this file to terraform.tfvars and fill in your values
+# Copy this file to terraform.tfvars and fill in your values.
+# OCI authentication is configured on the provider (see examples/example-1/providers.tf)
+# or through ~/.oci/config / OCI_* environment variables.
 
-# OCI Authentication
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaxxxxxxxxxx"
-user_ocid        = "ocid1.user.oc1..aaaaaaaxxxxxxxxxx"
-fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
-private_key_path = "~/.oci/oci_api_key.pem"
-region           = "us-phoenix-1"
-cloud_init_config = file("${path.module}/cloud-init.yaml")
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaxxxxxxxxxx"
+region       = "us-phoenix-1" # must be your tenancy home region for Always Free
 
-# Compartment
-compartment_ocid = "ocid1.compartment.oc1..aaaaaaaxxxxxxxxxx"
+# SSH public key content (not a path). From a calling module: file("~/.ssh/id_rsa.pub")
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... user@host"
+ssh_user       = "ubuntu"
 
 # Project Settings
 environment  = "dev"
@@ -21,31 +19,32 @@ public_subnet_cidr   = "10.0.1.0/24"
 private_subnet_cidr  = "10.0.2.0/24"
 database_subnet_cidr = "10.0.3.0/24"
 
-# Compute
+# Compute: 2 VMs sharing the Always Free A1 quota (2 OCPUs / 12 GB total)
+free_tier_mode         = true
 vm_count               = 2
 vm_shape               = "VM.Standard.A1.Flex"
-vm_ocpus               = 2
-vm_memory_gb           = 12
+vm_ocpus               = 1
+vm_memory_gb           = 6
 vm_boot_volume_size_gb = 50
-ssh_public_key_path    = "~/.ssh/id_rsa.pub"
 
 # Database
+enable_database    = false
 atp_db_name        = "habackenddb"
-atp_admin_password = "YourSecurePassword123!"
-enable_database    = true
+atp_admin_password = "ChangeMe-Str0ngPassw0rd"
 
-# Load Balancers
+# Load Balancer: Always Free includes a single load balancer
 enable_frontend_lb = true
-enable_backend_lb  = true
+enable_backend_lb  = false
 
 # Other Services
-enable_dns     = true
+enable_dns     = false
 enable_storage = true
+enable_backups = false
 enable_bastion = true
-enable_ocir    = true
+enable_ocir    = false
 
-# Security
-allowed_ssh_cidrs = ["0.0.0.0/0"]
+# Security: restrict Bastion access to your public IP (curl ifconfig.me)
+allowed_ssh_cidrs = ["203.0.113.10/32"]
 
 # Tags
 tags = {

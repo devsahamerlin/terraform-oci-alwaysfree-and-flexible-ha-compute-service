@@ -177,32 +177,6 @@ resource "oci_core_security_list" "public" {
   freeform_tags = var.tags
 }
 
-# # Public Security List
-# resource "oci_core_security_list" "public" {
-#   compartment_id = var.compartment_id
-#   vcn_id         = oci_core_vcn.main.id
-#   display_name   = "${var.project_name}-${var.environment}-public-sl"
-#
-#   egress_security_rules {
-#     destination = "0.0.0.0/0"
-#     protocol    = "all"
-#   }
-#
-#   dynamic "ingress_security_rules" {
-#     for_each = var.public_security_list_ingress_security_rules
-#     content {
-#       protocol = ingress_security_rules.value.protocol
-#       source   = ingress_security_rules.value.source
-#       tcp_options {
-#         min = ingress_security_rules.value.port_min
-#         max = ingress_security_rules.value.port_max
-#       }
-#     }
-#   }
-#
-#   freeform_tags = var.tags
-# }
-
 # Private Security List (Backend)
 resource "oci_core_security_list" "private" {
   compartment_id = var.compartment_id
@@ -253,31 +227,6 @@ resource "oci_core_security_list" "private" {
 
   freeform_tags = var.tags
 }
-# resource "oci_core_security_list" "private" {
-#   compartment_id = var.compartment_id
-#   vcn_id         = oci_core_vcn.main.id
-#   display_name   = "${var.project_name}-${var.environment}-private-sl"
-#
-#   egress_security_rules {
-#     destination = "0.0.0.0/0"
-#     protocol    = "all"
-#   }
-#
-#   dynamic "ingress_security_rules" {
-#     for_each = var.private_security_list_ingress_security_rules
-#     content {
-#       protocol = ingress_security_rules.value.protocol
-#       source   = var.vcn_cidr
-#       tcp_options {
-#         min = ingress_security_rules.value.port_min
-#         max = ingress_security_rules.value.port_max
-#       }
-#     }
-#   }
-#
-#   freeform_tags = var.tags
-# }
-
 # Database Security List
 resource "oci_core_security_list" "database" {
   count          = var.enable_database ? 1 : 0
@@ -304,26 +253,3 @@ resource "oci_core_security_list" "database" {
 
   freeform_tags = var.tags
 }
-# resource "oci_core_security_list" "database" {
-#   count          = var.enable_database ? 1 : 0
-#   compartment_id = var.compartment_id
-#   vcn_id         = oci_core_vcn.main.id
-#   display_name   = "${var.project_name}-${var.environment}-database-sl"
-#
-#   egress_security_rules {
-#     destination = "0.0.0.0/0"
-#     protocol    = "all"
-#   }
-#
-#   # Allow ingress from Backend Subnet
-#   ingress_security_rules {
-#     protocol = "6" # TCP
-#     source   = var.private_subnet_cidr
-#     tcp_options {
-#       min = 1521
-#       max = 1522
-#     }
-#   }
-#
-#   freeform_tags = var.tags
-# }

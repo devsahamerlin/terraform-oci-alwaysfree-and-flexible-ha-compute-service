@@ -61,7 +61,7 @@ resource "oci_core_instance" "vm" {
 
     plugins_config {
       name          = "OS Management Service Agent"
-      desired_state = var.os_manegement_service_agent
+      desired_state = var.os_management_service_agent
     }
   }
 

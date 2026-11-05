@@ -11,8 +11,8 @@ Environment variables:
     LLM_PROVIDER          : "claude" (default) or "gemini"
     ANTHROPIC_API_KEY     : Required when LLM_PROVIDER=claude
     GEMINI_API_KEY        : Required when LLM_PROVIDER=gemini
-    CLAUDE_MODEL          : Optional — default: claude-sonnet-4-6
-    GEMINI_MODEL          : Optional — default: gemini-2.5-flash
+    CLAUDE_MODEL          : Optional — default: claude-sonnet-5-5
+    GEMINI_MODEL          : Optional — default: gemini-3.7-flash
     DRY_RUN               : Set to "true" to print fixes without writing files
 """
 

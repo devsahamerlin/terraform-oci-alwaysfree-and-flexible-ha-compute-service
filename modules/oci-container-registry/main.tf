@@ -6,7 +6,7 @@ data "oci_objectstorage_namespace" "tenancy_namespace" {
 # Create Container Repository in OCIR (Optional - repositories are auto-created on first push)
 resource "oci_artifacts_container_repository" "backend_repository" {
   compartment_id = var.compartment_id
-  display_name   = "${data.oci_objectstorage_namespace.tenancy_namespace.namespace}/${var.project_name}"
+  display_name   = "${var.project_name}-${var.environment}"
 
   is_immutable = false
   is_public    = false
@@ -18,21 +18,6 @@ resource "oci_artifacts_container_repository" "backend_repository" {
 
   freeform_tags = var.tags
 }
-
-#resource "oci_artifacts_container_repository" "frontend_repository" {
-#  compartment_id = var.compartment_id
-#  display_name   = "${data.oci_objectstorage_namespace.tenancy_namespace.namespace}/${var.project_name}-${var.environment}/angular-frontend"
-#
-#  is_immutable = false
-#  is_public    = false
-#
-#  readme {
-#    content = "Container repository for ${var.project_name} ${var.environment} Angular frontend"
-#    format  = "text/plain"
-#  }
-#
-#  freeform_tags = var.tags
-#}
 
 # Create IAM user for GitHub Actions (Optional - only if GitHub Actions integration needed)
 resource "oci_identity_user" "github_actions_user" {

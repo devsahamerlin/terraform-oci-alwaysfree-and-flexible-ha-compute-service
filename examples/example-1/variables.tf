@@ -4,7 +4,7 @@ variable "tenancy_ocid" {
 }
 
 variable "ssh_public_key_path" {
-  description = "Path to SSH public key for VM access"
+  description = "Path to the SSH public key file used for VM access and Bastion sessions (e.g. ~/.ssh/id_rsa.pub)"
   type        = string
 }
 
@@ -47,6 +47,12 @@ variable "environment" {
   default     = "dev"
 }
 
+variable "compartment_enable_delete" {
+  description = "Allow terraform destroy to delete the compartment (set true for ephemeral environments)"
+  type        = bool
+  default     = false
+}
+
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
@@ -84,21 +90,21 @@ variable "vm_count" {
 }
 
 variable "vm_shape" {
-  description = "VM shape (VM.Standard.E2.1.Micro or VM.Standard.A1.Flex)"
+  description = "VM shape (free_tier_mode only allows VM.Standard.A1.Flex)"
   type        = string
   default     = "VM.Standard.A1.Flex" # ARM-based for better free tier
 }
 
 variable "vm_ocpus" {
-  description = "Number of OCPUs per VM (max 4 for A1 free tier total)"
+  description = "Number of OCPUs per VM (Always Free A1: 2 OCPUs total across all VMs)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "vm_memory_gb" {
-  description = "Memory in GB per VM (max 24GB for A1 free tier total)"
+  description = "Memory in GB per VM (Always Free A1: 12 GB total across all VMs)"
   type        = number
-  default     = 12
+  default     = 6
 }
 
 variable "vm_boot_volume_size_gb" {
@@ -123,7 +129,7 @@ variable "atp_admin_password" {
 variable "allowed_ssh_cidrs" {
   description = "List of CIDR blocks allowed to SSH via Bastion"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Remove 0.0.0.0/0 and use "your-public-ip/32"
+  default     = ["0.0.0.0/0"] # Replace with "your-public-ip/32" (curl ifconfig.me)
 }
 
 variable "tags" {
@@ -147,95 +153,6 @@ variable "github_actions_email" {
   default     = ""
 }
 
-variable "instance_image_ocid" {
-  type = map(string)
-  default = {
-    us-phoenix-1           = "ocid1.image.oc1.phx.aaaaaaaa6hooptnlbfwr5lwemqjbu3uqidntrlhnt45yihfj222zahe7p3wq"
-    us-ashburn-1           = "ocid1.image.oc1.iad.aaaaaaaa6tp7lhyrcokdtf7vrbmxyp2pctgg4uxvt4jz4vc47qoc2ec4anha"
-    eu-frankfurt-1         = "ocid1.image.oc1.eu-frankfurt-1.aaaaaaaadvi77prh3vjijhwe5xbd6kjg3n5ndxjcpod6om6qaiqeu3csof7a"
-    uk-london-1            = "ocid1.image.oc1.uk-london-1.aaaaaaaaw5gvriwzjhzt2tnylrfnpanz5ndztyrv3zpwhlzxdbkqsjfkwxaq"
-    eu-marseille-1-aarch64 = "ocid1.image.oc1.eu-marseille-1.aaaaaaaa457toyb4brqmdbcjdvjchspijbpjb3rubfddf7cgqrpfmjp55txq" # ubuntu aarch64
-    eu-marseille-1         = "ocid1.image.oc1.eu-marseille-1.aaaaaaaawmjm3gek2tgwdbttgn6qyb5rzrrgrdaibeu6lyfgjgolh4kceumq" # good ubuntu Always Free-eligible
-    eu-amsterdam-1         = "ocid1.image.oc1.eu-amsterdam-1.aaaaaaaai5hr6qpvn4crggx6qffx2ckkpgvozcebdi44ykspx5dxpabjm3vq" # good ubuntu Always Free-eligible
-  }
-}
-
-variable "public_security_list_ingress_security_rules" {
-  description = "Public Security List of ingress security rules"
-  type = list(object({
-    protocol = string
-    port_min = number
-    port_max = number
-    source   = string
-  }))
-  default = [
-    {
-      protocol = "6"
-      port_min = 22
-      port_max = 22
-      source   = "0.0.0.0/0"
-    },
-    {
-      protocol = "6"
-      port_min = 80
-      port_max = 80
-      source   = "0.0.0.0/0"
-    },
-    {
-      protocol = "6"
-      port_min = 443
-      port_max = 443
-      source   = "0.0.0.0/0"
-    }
-  ]
-}
-
-variable "private_security_list_ingress_security_rules" {
-  description = "Private Security List of ingress security rules"
-  type = list(object({
-    protocol = string
-    port_min = number
-    port_max = number
-  }))
-  default = [
-    {
-      protocol = "6"
-      port_min = 22
-      port_max = 22
-    },
-    {
-      protocol = "6"
-      port_min = 80
-      port_max = 80
-    },
-    {
-      protocol = "6"
-      port_min = 443
-      port_max = 443
-    },
-    {
-      protocol = "6"
-      port_min = 1521
-      port_max = 1522
-    },
-    {
-      protocol = "6"
-      port_min = 8443
-      port_max = 8443
-    },
-    {
-      protocol = "6"
-      port_min = 8080
-      port_max = 8080
-    },
-    {
-      protocol = "6"
-      port_min = 8000
-      port_max = 8000
-    },
-  ]
-}
-
 variable "enable_database" {
   description = "Enable or disable the Autonomous Database"
   type        = bool
@@ -255,19 +172,19 @@ variable "enable_frontend_lb" {
 }
 
 variable "enable_dns" {
-  description = "Enable or disable DNS resources"
-  type        = bool
-  default     = true
-}
-
-variable "enable_storage" {
-  description = "Enable or disable Storage resources"
+  description = "Enable or disable DNS resources (requires a domain delegated to OCI DNS)"
   type        = bool
   default     = false
 }
 
+variable "enable_storage" {
+  description = "Enable or disable Storage resources (bucket + one block volume attached per VM)"
+  type        = bool
+  default     = true
+}
+
 variable "enable_backups" {
-  description = "Enable automated backups for block volumes"
+  description = "Enable daily block volume backups (rejected in free_tier_mode: exceeds the 5 Always Free backups)"
   type        = bool
   default     = false
 }

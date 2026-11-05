@@ -5,6 +5,3 @@ provider "oci" {
   fingerprint      = var.fingerprint
   private_key_path = var.private_key_path
 }
-
-provider "random" {}
-provider "tls" {}

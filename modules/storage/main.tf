@@ -38,9 +38,18 @@ resource "oci_core_volume" "block_volume" {
   compartment_id      = var.compartment_id
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[count.index % length(data.oci_identity_availability_domains.ads.availability_domains)].name
   display_name        = "${var.project_name}-${var.environment}-volume-${count.index + 1}"
-  size_in_gbs         = 50
+  size_in_gbs         = var.block_volume_size_gb
 
   freeform_tags = var.tags
+}
+
+# Attach each block volume to its VM (same availability domain index as the compute module)
+resource "oci_core_volume_attachment" "block_volume_attachment" {
+  count           = var.vm_count
+  attachment_type = "paravirtualized"
+  instance_id     = var.instance_ids[count.index]
+  volume_id       = oci_core_volume.block_volume[count.index].id
+  display_name    = "${var.project_name}-${var.environment}-volume-attachment-${count.index + 1}"
 }
 
 resource "oci_core_volume_backup_policy_assignment" "volume_backup_policy_assignment" {

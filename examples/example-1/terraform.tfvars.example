@@ -1,19 +1,19 @@
-# OCI Authentication
+# Copy this file to terraform.tfvars (or env/<name>.tfvars) and fill in your values
+
+# OCI Authentication (used by providers.tf)
 tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaxxxxxxxxxx"
 user_ocid        = "ocid1.user.oc1..aaaaaaaxxxxxxxxxx"
 fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
 private_key_path = "~/.oci/oci_api_key.pem"
-region           = "us-phoenix-1"
+region           = "us-phoenix-1" # must be your tenancy home region for Always Free
 
-namespace        = "oci namespace id"
-ssh_public_key_path = "eg: ~/.ssh/id_rsa.pub"
-
-backend_domain_name = "backend.example.com"
-frontend_domain_name = "frontend.example.com"
+namespace           = "" # optional, looked up automatically when empty
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
 
 # Project Settings
-environment  = "local"
-project_name = "ha-backend-local-test"
+environment               = "dev"
+project_name              = "ha-backend"
+compartment_enable_delete = false
 
 # Network
 vcn_cidr             = "10.0.0.0/16"
@@ -21,34 +21,41 @@ public_subnet_cidr   = "10.0.1.0/24"
 private_subnet_cidr  = "10.0.2.0/24"
 database_subnet_cidr = "10.0.3.0/24"
 
-# Compute
+# Compute: 2 VMs sharing the Always Free A1 quota (2 OCPUs / 12 GB total)
+free_tier_mode         = true
 vm_count               = 2
 vm_shape               = "VM.Standard.A1.Flex"
-vm_ocpus               = 2
-vm_memory_gb           = 12
+vm_ocpus               = 1
+vm_memory_gb           = 6
 vm_boot_volume_size_gb = 50
-ssh_public_key_path    = "~/.ssh/id_rsa.pub"
 
-# Database
+# Database (Always Free ATP: public endpoint secured by mTLS wallet)
+enable_database    = false
 atp_db_name        = "habackenddb"
-atp_admin_password = "YourSecurePassword123!"
+atp_admin_password = "ChangeMe-Str0ngPassw0rd"
 
-# GitHub Actions (Optional)
+# Load Balancer: Always Free includes a single load balancer
+enable_frontend_lb = true
+enable_backend_lb  = false
+
+# DNS (not part of Always Free, requires a domain delegated to OCI DNS)
+enable_dns           = false
+frontend_domain_name = "frontend.example.com"
+backend_domain_name  = "backend.example.com"
+
+# Other Services
+enable_storage        = true
+enable_backups        = false # daily backups exceed the 5 Always Free volume backups
+object_events_enabled = true
+enable_bastion        = true
+enable_ocir           = false
+
+# GitHub Actions (Optional, used when enable_ocir = true)
 github_actions_email      = ""
 github_actions_public_key = ""
 
-# Feature Flags
-enable_database    = false
-enable_frontend_lb = true
-enable_backend_lb  = false
-enable_bastion     = true
-enable_dns         = true
-enable_storage     = true
-enable_ocir        = true
-object_events_enabled = true
-
-# Security
-allowed_ssh_cidrs = ["0.0.0.0/0"]
+# Security: restrict Bastion access to your public IP (curl ifconfig.me)
+allowed_ssh_cidrs = ["203.0.113.10/32"]
 
 # Tags
 tags = {

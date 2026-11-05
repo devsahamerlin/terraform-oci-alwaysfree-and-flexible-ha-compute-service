@@ -15,7 +15,13 @@ repos:
         args:
           - --args=--recursive
 
+      - id: terraform_docs
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
+          - --args=--config=.terraform-docs.yml
+
       - id: terraform_checkov
         args:
-          - --args=--framework=terraform
-          - --args=--skip-check=CKV_TF_1,CKV_OCI_17,CKV_OCI_19,CKV_OCI_3,CKV_OCI_20,CKV_OCI_9,CKV_OCI_2
+          - --args=--config-file __GIT_WORKING_DIR__/.checkov.yaml

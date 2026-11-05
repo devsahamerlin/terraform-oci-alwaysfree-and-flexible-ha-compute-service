@@ -4,12 +4,12 @@ output "lb_id" {
 }
 
 output "lb_public_ip" {
-  description = "Load Balancer Public IP Address"
+  description = "Load Balancer IP address (public, or private when is_private_lb = true)"
   value       = oci_load_balancer_load_balancer.app_lb.ip_address_details[0].ip_address
 }
 
 output "lb_details" {
-  description = "Load Balancer Public IP Address"
+  description = "Full Load Balancer resource attributes"
   value       = oci_load_balancer_load_balancer.app_lb
 }
 
