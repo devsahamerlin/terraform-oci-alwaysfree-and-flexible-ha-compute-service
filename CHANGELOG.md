@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-11-05
 
 First public release on the Terraform Registry (`devsahamerlin/alwaysfree-and-flexible-ha-compute-service/oci`).
 
